@@ -1,6 +1,6 @@
 # RoboBuilder Academy
 
-Interactive pixel-art educational website for **CMPE 591 — Introduction to Robot Learning** exam preparation at Bogazici University.
+Interactive pixel-art educational website for **CMPE 591 — Deep Learning in Robotics** exam preparation at Bogazici University.
 
 ## What is this?
 
@@ -35,4 +35,4 @@ Dev server starts at `localhost:4321`.
 
 ## Course
 
-CMPE 591 — Introduction to Robot Learning, Prof. Emre Ugur, Bogazici University, Spring 2026.
+CMPE 591 — Deep Learning in Robotics, Prof. Emre Ugur, Bogazici University, Spring 2026.
