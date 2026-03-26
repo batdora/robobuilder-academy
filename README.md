@@ -1,43 +1,38 @@
-# Astro Starter Kit: Minimal
+# RoboBuilder Academy
 
-```sh
-npm create astro@latest -- --template minimal
+Interactive pixel-art educational website for **CMPE 591 — Introduction to Robot Learning** exam preparation at Bogazici University.
+
+## What is this?
+
+A retro-themed, gamified study companion that covers the full course syllabus — from neural network basics to advanced robot learning methods like CNMP and ACNMP. Built as an Astro + React app with NES.css pixel aesthetics.
+
+## Features
+
+- **6 Modules, 50+ Lessons** — covering Foundations, RL, Deep Q-Learning, Policy Optimization, Advanced Architectures (Transformers, GNNs), and Robot Learning
+- **Skill Tree** — React Flow dependency graph showing your learning path
+- **Quiz Engine** — multiple choice, drag-and-drop ordering, slider tuning, equation fill-in, diagram labeling
+- **Boss Battles** — 3-phase exam challenges (Gradient Gatekeeper, Bellman Beast, Overestimation Oracle, Policy Phantom)
+- **PixiJS Sandbox** — ECS-based gridworld with RL agent visualization (Q-value heatmaps, policy overlays)
+- **Gauntlet Mode** — spaced repetition flip-card review with SM-2 algorithm
+- **Practice Final Exam** — 60-question pool, 90-minute timer, per-module scoring
+- **Progress Dashboard** — radar charts, study calendar, weak area detection, evolving robot avatar
+- **Robot Journal** — retro terminal-style log with typewriter animation
+- **8-bit Sound Effects** — Web Audio API generated, with mute toggle
+- **XP & Leveling** — earn experience completing lessons and quizzes
+
+## Tech Stack
+
+Astro 6 | React | TypeScript | Tailwind CSS | NES.css | Zustand | PixiJS | bitecs | React Flow | Recharts | KaTeX | MDX
+
+## Getting Started
+
+```bash
+npm install
+npm run dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Dev server starts at `localhost:4321`.
 
-## 🚀 Project Structure
+## Course
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
-
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+CMPE 591 — Introduction to Robot Learning, Prof. Emre Ugur, Bogazici University, Spring 2026.
