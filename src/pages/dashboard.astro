@@ -1,0 +1,9 @@
+---
+import MainLayout from '../components/layout/MainLayout.astro';
+import ProgressDashboard from '../components/dashboard/ProgressDashboard';
+---
+<MainLayout title="Progress Dashboard">
+  <div class="min-h-[calc(100vh-3.5rem)] p-4">
+    <ProgressDashboard client:load />
+  </div>
+</MainLayout>

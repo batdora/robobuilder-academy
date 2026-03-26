@@ -1,0 +1,13 @@
+---
+import MainLayout from '../components/layout/MainLayout.astro';
+import BlueprintView from '../components/skill-tree/BlueprintView';
+import XPBadge from '../components/ui/XPBadge';
+---
+<MainLayout title="Robot Blueprint">
+  <div class="h-[calc(100vh-3.5rem)] relative">
+    <div class="absolute top-4 right-4 z-10">
+      <XPBadge client:load />
+    </div>
+    <BlueprintView client:load />
+  </div>
+</MainLayout>

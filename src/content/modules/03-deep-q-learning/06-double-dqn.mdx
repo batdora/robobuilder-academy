@@ -1,0 +1,219 @@
+---
+title: "Double DQN"
+lessonId: "dqn-06-double-dqn"
+moduleId: "03-deep-q-learning"
+order: 6
+xpReward: 250
+robotPart: "VISUAL_CORTEX"
+requiresParts: ["CHASSIS", "BRAIN", "EYES", "GENERALIZATION_MODULE"]
+journalEntry: "VISUAL_CORTEX installed. I can now see clearly -- not just the surface of things, but their true value. My estimation bias has been corrected. Two perspectives are better than one."
+---
+
+# Double DQN
+
+Standard Q-learning and DQN suffer from a systematic problem: they **overestimate** Q-values. This over-optimism leads to poor policies. Double Q-learning, and its deep RL variant Double DQN, solve this by decoupling action **selection** from action **evaluation**.
+
+## The Maximization Bias Problem
+
+### The Source of the Problem
+
+The Q-learning update uses the **max operator**:
+
+$$
+Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s,a) \right]
+$$
+
+The max operator assumes that the maximum estimated value is the true maximum value. But if $Q(s', a')$ is a **noisy estimate**, the max operator will consistently pick the action with the **highest positive noise**, not the truly best action.
+
+### Why Max Over Noisy Estimates is Biased
+
+Suppose the true Q-values for 4 actions are all equal: $Q^*(s', a_i) = 5.0$ for all $i$. But our estimates are noisy:
+
+| Action | True $Q^*$ | Estimated $\hat{Q}$ | Noise |
+|---|---|---|---|
+| $a_1$ | 5.0 | 5.3 | +0.3 |
+| $a_2$ | 5.0 | 4.7 | -0.3 |
+| $a_3$ | 5.0 | 5.8 | +0.8 |
+| $a_4$ | 5.0 | 4.5 | -0.5 |
+
+- True maximum: $\max Q^* = 5.0$
+- Estimated maximum: $\max \hat{Q} = 5.8$ (picks the noise, not the signal!)
+- **Overestimation:** $5.8 - 5.0 = 0.8$
+
+This overestimation is **systematic** -- taking the max of noisy estimates always gives a value $\geq$ the max of the true values:
+
+$$
+\mathbb{E}\left[\max_a \hat{Q}(s,a)\right] \geq \max_a Q^*(s,a)
+$$
+
+### The Feedback Loop
+
+In Q-learning, overestimation feeds back into the learning:
+1. We overestimate $Q(s', a')$ due to the max
+2. This inflated estimate becomes the target for $Q(s, a)$
+3. Now $Q(s, a)$ is overestimated too
+4. This propagates backward through the state space, inflating all values
+
+In DQN, the Target and Online networks are often too similar, making this worse. If the agent accidentally thinks an action is good, it updates itself to believe it even more.
+
+## The Double Q-Learning Solution
+
+### Core Idea: Decouple Selection from Evaluation
+
+The problem is that we use the **same** Q-function to both:
+1. **Select** the best action: $a^* = \arg\max_{a'} Q(s', a')$
+2. **Evaluate** its value: $Q(s', a^*)$
+
+If we use a second, **independent** estimator for the evaluation, the selection noise doesn't inflate the evaluation.
+
+### Tabular Double Q-Learning
+
+Maintain **two** independent Q-functions, $Q_1$ and $Q_2$:
+
+```
+Algorithm: Double Q-Learning (Tabular)
+1: Initialize Q_1(s, a) and Q_2(s, a)
+2: For each episode do
+3:   Initialize s
+4:   For each step do
+5:     Choose a using epsilon-greedy based on Q_1 + Q_2
+6:     Take action a, observe r, s'
+7:     With 0.5 probability update Q_1:
+8:       a* = argmax_a' Q_1(s', a')            // Q_1 selects
+9:       Q_1(s,a) <- Q_1(s,a) + alpha[r + gamma * Q_2(s', a*) - Q_1(s,a)]  // Q_2 evaluates
+10:    Else update Q_2 similarly (swapping 1 and 2)
+11:  End For
+12: End For
+```
+
+**Key insight:** $Q_1$ picks the action, but $Q_2$ evaluates it. If $Q_1$ overestimates action $a^*$ due to noise, $Q_2$ (with independent noise) will likely give a more accurate evaluation.
+
+## Deep Double Q-Learning (Double DQN)
+
+### Adapting for Deep RL
+
+In DQN, we already have two networks: the online network ($\theta$) and the target network ($\theta^-$). We do **not** need to switch roles randomly. Instead:
+
+- **Online network** ($\theta$) -- the **Selector**: picks which action is best
+- **Target network** ($\theta^-$) -- the **Evaluator**: tells you how much that action is worth
+
+### The Double DQN Target
+
+**Standard DQN target:**
+
+$$
+Y_t^{DQN} = r + \gamma Q(s', \arg\max_{a'} Q(s', a'; \theta); \theta^-)
+$$
+
+Wait -- that is just $r + \gamma \max_{a'} Q(s', a'; \theta^-)$ because the same network ($\theta^-$) selects and evaluates.
+
+**Double DQN target:**
+
+$$
+Y_t^{DoubleDQN} = r + \gamma Q_{\theta^-}\!\left(s', \underbrace{\arg\max_{a'} Q_\theta(s', a')}_{\text{The Selector}}\right)
+$$
+
+The difference is subtle but critical:
+- **Selection** uses the **online** network $Q_\theta$: $a^* = \arg\max_{a'} Q_\theta(s', a')$
+- **Evaluation** uses the **target** network $Q_{\theta^-}$: $Q_{\theta^-}(s', a^*)$
+
+### Deep Double Q-Learning Pseudocode
+
+```
+Algorithm: Deep Double Q-Learning
+1: Initialize Online Q_theta and Target Q_{theta^-}
+2: For each step t do
+3:   Select a_t using epsilon-greedy from Q_theta
+4:   Execute a_t, observe r_t, s_{t+1}
+5:   Sample batch (s, a, r, s') from Replay Buffer
+6:   a* = argmax_{a'} Q_theta(s', a')           // Online selects
+7:   y = r + gamma * Q_{theta^-}(s', a*)         // Target evaluates
+8:   Update theta by minimizing (y - Q_theta(s, a))^2
+9:   Periodically: theta^- <- theta
+10: End For
+```
+
+### The Double DQN Loss
+
+$$
+L_i(\theta_i) = \mathbb{E}_{s,a,s',r \sim D} \left( r + \gamma Q(s', \arg\max_{a'} Q(s', a'; \theta); \theta_i^-) - Q(s, a; \theta_i) \right)^2
+$$
+
+This is from van Hasselt et al. (2016): "Deep Reinforcement Learning with Double Q-Learning."
+
+## Why This Reduces Overestimation
+
+### The Independence Argument
+
+For the overestimation bias to occur, the **same** function must select and evaluate. When different functions do each job:
+
+- The online network might select action $a_3$ because it has high noise for $a_3$
+- But the target network has **different** noise for $a_3$, so it evaluates $a_3$ more accurately
+- The positive noise in selection does not correlate with the evaluation
+
+### Not Perfect, But Much Better
+
+Double DQN does not completely eliminate overestimation (the two networks are not truly independent -- one is a delayed copy of the other). But it **significantly reduces** the upward bias in value estimation, leading to more stable learning.
+
+## Results: Double DQN vs DQN
+
+### Atari Benchmark (van Hasselt et al., 2016)
+
+| Metric | DQN | DDQN | DQN (human starts) | DDQN (human starts) | DDQN tuned |
+|---|---|---|---|---|---|
+| Median | 93% | **115%** | 47% | 88% | **117%** |
+| Mean | 241% | **330%** | 122% | 273% | **475%** |
+
+(Percentages relative to human performance)
+
+### Game-Specific Improvements
+
+Double DQN shows especially large improvements in games where DQN severely overestimates:
+- **Wizard of Wor:** DQN overestimates values by orders of magnitude; Double DQN maintains stable, accurate values and achieves much higher scores
+- **Asterix:** Similar pattern -- reduced overestimation leads to better policies
+
+### Value Estimation Accuracy
+
+Comparing estimated Q-values to actual returns:
+- DQN estimates grow uncontrollably (sometimes 10-100x the true value)
+- Double DQN estimates closely track the actual discounted returns
+- More accurate value estimates lead to better action selection
+
+## The Network Roles in Double DQN
+
+| | Online Network ($\theta$) | Target Network ($\theta^-$) |
+|---|---|---|
+| **Updated how** | Gradient descent every step | Periodically copied from $\theta$ |
+| **Selects action** | Yes ($a^* = \arg\max Q_\theta$) | No |
+| **Evaluates action** | No | Yes ($Q_{\theta^-}(s', a^*)$) |
+| **Do they switch?** | No -- roles are fixed | Target is always the evaluator |
+
+**Important:** Unlike tabular Double Q-learning where the roles are swapped randomly, in Deep Double Q-learning the roles are fixed. The online network always selects and the target network always evaluates.
+
+## Worked Example: Double DQN Reduces Bias
+
+Consider state $s'$ with 3 actions:
+
+| Action | True $Q^*$ | Online $Q_\theta$ | Target $Q_{\theta^-}$ |
+|---|---|---|---|
+| $a_1$ | 10.0 | 10.5 | 9.8 |
+| $a_2$ | 8.0 | 12.0 | 8.3 |
+| $a_3$ | 9.0 | 8.5 | 9.2 |
+
+**DQN (same network selects and evaluates, using $\theta^-$):**
+- $\max_{a'} Q_{\theta^-}(s', a') = 9.8$ (selects $a_1$, evaluates at 9.8)
+- Not too bad here, but with $\theta$: $\max Q_\theta = 12.0$ (huge overestimation)
+
+**Double DQN:**
+- Online selects: $a^* = \arg\max Q_\theta = a_2$ (online thinks $a_2$ is best at 12.0)
+- Target evaluates: $Q_{\theta^-}(s', a_2) = 8.3$
+- Target value: $r + \gamma \times 8.3$ instead of $r + \gamma \times 12.0$
+- Much closer to the true $Q^*(s', a_2) = 8.0$!
+
+The online network's overestimation of $a_2$ is **corrected** by the target network's independent evaluation.
+
+## Key Takeaway
+
+> The max operator in Q-learning creates systematic overestimation because it uses the same function to select and evaluate actions. Double DQN fixes this with a simple change: use the online network to select the best action and the target network to evaluate it. This decoupling significantly reduces overestimation bias, leading to more accurate value estimates and better policies. The modification requires just one line of code change from DQN!
+
+Unlocking the **VISUAL_CORTEX** gives your robot the ability to see things as they truly are -- not distorted by the optimism of a single perspective.

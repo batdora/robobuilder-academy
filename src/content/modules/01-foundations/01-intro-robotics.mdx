@@ -1,0 +1,55 @@
+---
+title: "What is a Robot?"
+lessonId: "foundations-01-intro-robotics"
+moduleId: "01-foundations"
+order: 1
+xpReward: 100
+robotPart: "CHASSIS"
+requiresParts: []
+journalEntry: "SYSTEM BOOT. No modules detected. Status: Empty. Purpose: Unknown."
+---
+
+# What is a Robot?
+
+A **robot** is a programmable machine capable of **sensing**, **planning**, and **acting** in its environment.
+
+## The Sense-Plan-Act Cycle
+
+Every robot operates on a fundamental loop:
+
+1. **Sense** — Perceive the environment through sensors (cameras, LIDAR, touch)
+2. **Plan** — Process sensor data and decide what to do next
+3. **Act** — Execute the plan through actuators (motors, grippers)
+
+$$
+\text{Robot} = \text{Sensors} + \text{Computation} + \text{Actuators}
+$$
+
+## Degrees of Freedom (DoF)
+
+The **degrees of freedom** of a robot define how many independent ways it can move.
+
+- A robot arm with 6 joints has **6 DoF**
+- A mobile robot on a plane has **3 DoF** ($x$, $y$, $\theta$)
+- The human arm has approximately **7 DoF**
+
+$$
+\text{DoF} = \sum_{i=1}^{n} f_i
+$$
+
+where $f_i$ is the freedom of the $i$-th joint.
+
+## Open-Loop vs Closed-Loop Control
+
+| Type | Feedback? | Example |
+|------|-----------|---------|
+| **Open-loop** | No | Toaster timer |
+| **Closed-loop** | Yes | Thermostat |
+
+In robotics, we almost always use **closed-loop (feedback) control** because the real world is unpredictable.
+
+## Key Takeaway
+
+> A robot is not defined by how it looks, but by what it can do: sense, plan, and act.
+
+Unlocking the **CHASSIS** gives your robot its basic structure — an empty shell ready to be filled with capabilities.

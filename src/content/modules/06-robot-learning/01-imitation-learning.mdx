@@ -1,0 +1,154 @@
+---
+title: "Imitation Learning"
+lessonId: "robot-learning-01-imitation-learning"
+moduleId: "06-robot-learning"
+order: 1
+xpReward: 200
+isBonus: true
+requiresParts: []
+journalEntry: "OBSERVATION MODE ENGAGED. Why learn from scratch when I can learn from watching experts?"
+---
+
+# Imitation Learning
+
+Reinforcement learning requires a reward function and extensive exploration. But what if we have access to **expert demonstrations**? **Imitation learning** (also called **learning from demonstration**) allows robots to learn behaviors directly from observing an expert, bypassing the need for reward engineering and exploration.
+
+## Motivation
+
+Designing reward functions for complex tasks is extremely difficult:
+- How do you reward "graceful" walking?
+- How do you reward "careful" object manipulation?
+- Sparse rewards lead to slow learning
+
+Imitation learning sidesteps this by learning **directly from demonstrations**.
+
+## Problem Formulation
+
+Given:
+- A dataset of expert demonstrations $\mathcal{D} = \{(\mathbf{s}_1, \mathbf{a}_1), (\mathbf{s}_2, \mathbf{a}_2), \ldots\}$
+- State-action pairs from an expert policy $\pi^*$
+
+Goal: Learn a policy $\hat{\pi}$ that mimics the expert:
+
+$$
+\hat{\pi}(\mathbf{a} | \mathbf{s}) \approx \pi^*(\mathbf{a} | \mathbf{s})
+$$
+
+## Behavioral Cloning
+
+The simplest approach: treat imitation as **supervised learning**.
+
+**Training:** Given expert dataset $\mathcal{D} = \{(\mathbf{s}_i, \mathbf{a}_i)\}_{i=1}^N$, minimize:
+
+$$
+\mathcal{L}(\theta) = \frac{1}{N} \sum_{i=1}^{N} \ell(\hat{\pi}_\theta(\mathbf{s}_i), \mathbf{a}_i)
+$$
+
+For continuous actions (regression):
+
+$$
+\mathcal{L}(\theta) = \frac{1}{N} \sum_{i=1}^{N} \|\hat{\pi}_\theta(\mathbf{s}_i) - \mathbf{a}_i\|^2
+$$
+
+For discrete actions (classification):
+
+$$
+\mathcal{L}(\theta) = -\frac{1}{N} \sum_{i=1}^{N} \log \hat{\pi}_\theta(\mathbf{a}_i | \mathbf{s}_i)
+$$
+
+## The Compounding Error Problem (Distribution Shift)
+
+Behavioral cloning has a critical flaw: **compounding errors**.
+
+During training, the policy sees states from the expert's distribution $d_{\pi^*}$. During execution, any small mistake takes the agent to a state **the expert never visited**. The policy has no training signal for these states, leading to larger errors, which lead to even more unfamiliar states.
+
+Formally, let $\epsilon$ be the per-step error probability. Over a trajectory of length $T$:
+
+$$
+\text{Total error} \propto \epsilon T^2
+$$
+
+The error grows **quadratically** with the horizon. This makes behavioral cloning fragile for long-horizon tasks.
+
+### Why Quadratic?
+
+At time $t$, the probability of being in the expert's state distribution decreases. Each step accumulates error from the current step **plus** the drift from all previous errors. The sum $\sum_{t=1}^{T} t \cdot \epsilon \propto \epsilon T^2$.
+
+## DAgger: Dataset Aggregation
+
+**DAgger** (Ross et al., 2011) addresses distribution shift by iteratively collecting data from the **learner's** distribution:
+
+**Algorithm:**
+1. Initialize $\mathcal{D}$ with expert demonstrations
+2. Train policy $\hat{\pi}_\theta$ on $\mathcal{D}$
+3. Execute $\hat{\pi}_\theta$ to collect new states $\mathbf{s}_1', \mathbf{s}_2', \ldots$
+4. **Query the expert** for actions at these new states: $\mathbf{a}_i' = \pi^*(\mathbf{s}_i')$
+5. Add $\{(\mathbf{s}_i', \mathbf{a}_i')\}$ to $\mathcal{D}$
+6. Repeat from step 2
+
+$$
+\mathcal{D}_{n+1} = \mathcal{D}_n \cup \{(\mathbf{s}, \pi^*(\mathbf{s})) : \mathbf{s} \sim d_{\hat{\pi}_n}\}
+$$
+
+DAgger reduces the error bound from $O(\epsilon T^2)$ to $O(\epsilon T)$ -- **linear** in the horizon.
+
+**Limitation:** DAgger requires an interactive expert who can label new states on demand, which is often impractical (imagine asking a human surgeon to label every state a robot visits).
+
+## Goal-Conditioned Behavioral Cloning
+
+Standard behavioral cloning learns a single behavior. **Goal-conditioned** BC learns a policy that can achieve different goals:
+
+$$
+\hat{\pi}_\theta(\mathbf{a} | \mathbf{s}, \mathbf{g})
+$$
+
+where $\mathbf{g}$ is a goal specification (e.g., target position, desired configuration).
+
+This is particularly useful in robotics where the same skill (reaching, grasping) must be applied to different targets.
+
+## Learning from Observation (LfO)
+
+What if we only have **state** observations without expert actions? This is **Learning from Observation**:
+
+- Given: $\mathcal{D} = \{\mathbf{s}_1, \mathbf{s}_2, \ldots, \mathbf{s}_T\}$ (states only, no actions)
+- Challenge: Must infer what actions would produce the observed state transitions
+
+Approaches include:
+- Learning an inverse dynamics model $\hat{\mathbf{a}}_t = f(\mathbf{s}_t, \mathbf{s}_{t+1})$
+- Using the inferred actions for behavioral cloning
+
+## Inverse Reinforcement Learning (IRL)
+
+Instead of directly copying actions, **Inverse RL** recovers the expert's **reward function**:
+
+$$
+R^* = \arg\max_{R} \left(\min_\pi -H(\pi) + \mathbb{E}_\pi[R(\mathbf{s}, \mathbf{a})]\right) - \mathbb{E}_{\pi^*}[R(\mathbf{s}, \mathbf{a})]
+$$
+
+Once we have the reward function, we can use standard RL to learn a policy. This is more robust because:
+- The reward function transfers across different environments
+- The learned policy can generalize beyond demonstrated situations
+
+**Key insight from the lectures:** The reward function is the most succinct, robust, and transferable representation of a task.
+
+## Comparison of Approaches
+
+| Method | Requires | Error Growth | Interactive Expert? |
+|--------|----------|-------------|-------------------|
+| Behavioral Cloning | State-action pairs | $O(\epsilon T^2)$ | No |
+| DAgger | Interactive expert | $O(\epsilon T)$ | Yes |
+| Inverse RL | Demonstrations + RL | Depends on RL | No |
+| Goal-conditioned BC | State-action-goal tuples | $O(\epsilon T^2)$ | No |
+
+## Worked Example: Compounding Error
+
+A self-driving car trained with behavioral cloning has a 1% chance of making a small steering error at each step. Over a 100-step trajectory:
+
+- **Behavioral cloning:** Expected error $\propto 0.01 \times 100^2 = 100$ (the car drifts far off course)
+- **DAgger:** Expected error $\propto 0.01 \times 100 = 1$ (the car stays much closer to the expert trajectory)
+
+This dramatic difference explains why DAgger and its variants are preferred for long-horizon tasks.
+
+## Key Takeaway
+
+> Imitation learning enables robots to learn from expert demonstrations without reward engineering. Behavioral cloning is simple but suffers from compounding errors due to distribution shift. DAgger addresses this by iteratively querying the expert on the learner's visited states. Inverse RL recovers the underlying reward function for more robust generalization.

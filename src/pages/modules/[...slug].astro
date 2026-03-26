@@ -1,0 +1,34 @@
+---
+import { getCollection, render } from 'astro:content';
+import LessonLayout from '../../components/layout/LessonLayout.astro';
+import CompleteLessonButton from '../../components/ui/CompleteLessonButton';
+
+export async function getStaticPaths() {
+  const lessons = await getCollection('modules');
+  return lessons.map((lesson) => ({
+    params: { slug: lesson.id },
+    props: { lesson },
+  }));
+}
+
+const { lesson } = Astro.props;
+const { Content } = await render(lesson);
+---
+<LessonLayout
+  title={lesson.data.title}
+  lessonId={lesson.data.lessonId}
+  moduleId={lesson.data.moduleId}
+  robotPart={lesson.data.robotPart || ''}
+  xpReward={lesson.data.xpReward}
+>
+  <Content />
+  <div class="mt-8 flex justify-center">
+    <CompleteLessonButton
+      client:load
+      lessonId={lesson.data.lessonId}
+      moduleId={lesson.data.moduleId}
+      xpReward={lesson.data.xpReward}
+      robotPart={lesson.data.robotPart || ''}
+    />
+  </div>
+</LessonLayout>

@@ -1,0 +1,100 @@
+---
+title: "Convolutional Neural Networks"
+lessonId: "foundations-03-intro-to-cnns"
+moduleId: "01-foundations"
+order: 3
+xpReward: 150
+robotPart: "EYES"
+requiresParts: ["CHASSIS", "BRAIN"]
+journalEntry: "VISUAL CORTEX ONLINE. First impression: pixels. So many pixels. Pattern recognition... initializing."
+---
+
+# Convolutional Neural Networks
+
+Standard MLPs treat each input independently. For images, this ignores spatial structure and requires enormous parameter counts. **CNNs** solve this by exploiting local patterns.
+
+## Why CNNs for Vision?
+
+An image of size $224 \times 224 \times 3$ has **150,528** input values. A fully connected layer to 1000 hidden units would need over **150 million** weights for just the first layer.
+
+CNNs use three key ideas:
+- **Local connectivity** — each neuron connects to a small region
+- **Weight sharing** — the same filter is applied everywhere
+- **Translation invariance** — a cat is a cat regardless of position
+
+## The Convolution Operation
+
+A 2D convolution slides a filter (kernel) $\mathbf{K}$ across the input $\mathbf{I}$:
+
+$$
+(\mathbf{I} * \mathbf{K})(i, j) = \sum_{m} \sum_{n} \mathbf{I}(i+m,\, j+n) \cdot \mathbf{K}(m, n)
+$$
+
+The output size for input size $W$, kernel size $K$, padding $P$, and stride $S$:
+
+$$
+W_{\text{out}} = \frac{W - K + 2P}{S} + 1
+$$
+
+## Filters and Kernels
+
+A **filter** is a small matrix of learnable weights (e.g., $3 \times 3$, $5 \times 5$). Each filter detects a specific pattern:
+
+- Early filters learn **edges** and **gradients**
+- Middle filters learn **textures** and **shapes**
+- Deep filters learn **object parts** and **semantic concepts**
+
+A convolutional layer with $C_{\text{in}}$ input channels and $C_{\text{out}}$ filters has:
+
+$$
+\text{Parameters} = C_{\text{out}} \times (C_{\text{in}} \times K \times K + 1)
+$$
+
+## Pooling
+
+Pooling reduces spatial dimensions and provides some translation invariance.
+
+**Max Pooling** — takes the maximum value in each window:
+
+$$
+y_{ij} = \max_{(m,n) \in R_{ij}} x_{mn}
+$$
+
+**Average Pooling** — takes the mean value:
+
+$$
+y_{ij} = \frac{1}{|R_{ij}|} \sum_{(m,n) \in R_{ij}} x_{mn}
+$$
+
+A $2 \times 2$ max pool with stride 2 halves spatial dimensions, reducing computation by 4x.
+
+## CNN Architecture
+
+A typical CNN follows this pattern:
+
+$$
+\text{Input} \to [\text{Conv} \to \text{ReLU} \to \text{Pool}] \times N \to \text{Flatten} \to \text{FC} \to \text{Output}
+$$
+
+Each conv-pool block:
+- **Increases** the number of feature channels
+- **Decreases** the spatial resolution
+- **Builds** increasingly abstract representations
+
+## Feature Hierarchy
+
+CNNs learn a hierarchy of features automatically:
+
+| Layer Depth | What It Learns | Example |
+|-------------|---------------|---------|
+| Shallow | Edges, corners | Horizontal lines |
+| Middle | Textures, parts | Wheel pattern |
+| Deep | Objects, scenes | Entire robot arm |
+
+This hierarchical representation is what makes CNNs so effective — they build complex concepts from simple building blocks.
+
+## Key Takeaway
+
+> CNNs exploit spatial structure through local filters and weight sharing, learning a hierarchy from edges to objects.
+
+The **EYES** are online. Your robot can now see patterns in the world — edges, textures, and shapes emerging from raw pixels.

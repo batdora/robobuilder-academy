@@ -1,0 +1,174 @@
+---
+title: "Transformer Variants: BERT, GPT, and ViT"
+lessonId: "advanced-arch-06-transformer-variants"
+moduleId: "05-advanced-architectures"
+order: 6
+xpReward: 200
+robotPart: "LANGUAGE_PROCESSOR"
+isBonus: true
+requiresParts: []
+journalEntry: "LANGUAGE PROCESSOR INSTALLED. Understanding bidirectional context, generating sequences, and even seeing through patches."
+---
+
+# Transformer Variants: BERT, GPT, and ViT
+
+The original Transformer was designed for sequence-to-sequence tasks. Researchers quickly discovered that using **only the encoder** or **only the decoder** -- with clever pre-training objectives -- yields powerful models for different tasks. This lesson covers the three most influential variants.
+
+## BERT: Bidirectional Encoder Representations from Transformers
+
+**BERT** (Devlin et al., 2018) uses only the **Transformer encoder** and is designed for **understanding** tasks.
+
+### Architecture
+
+- Stack of Transformer encoder layers (BERT-Base: 12 layers, 768 hidden, 12 heads, 110M parameters)
+- Processes the **entire input** bidirectionally -- each token attends to all other tokens
+- Adds special tokens: `[CLS]` at the start (used for classification), `[SEP]` to separate sentence pairs
+
+### Pre-training Objectives
+
+BERT is pre-trained on two unsupervised tasks:
+
+**1. Masked Language Model (MLM):**
+
+Randomly mask 15% of input tokens and predict them:
+
+$$
+P(x_{\text{mask}} | x_{\text{context}}) = \text{softmax}(\mathbf{W} \cdot \mathbf{h}_{\text{mask}} + \mathbf{b})
+$$
+
+Of the 15% selected tokens:
+- 80% are replaced with `[MASK]`
+- 10% are replaced with a random token
+- 10% are kept unchanged
+
+This forces the model to build deep bidirectional representations.
+
+**2. Next Sentence Prediction (NSP):**
+
+Given sentence A and sentence B, predict whether B actually follows A in the original text:
+
+$$
+P(\text{IsNext} | \mathbf{h}_{\text{[CLS]}}) = \sigma(\mathbf{W}_{\text{NSP}} \cdot \mathbf{h}_{\text{[CLS]}})
+$$
+
+### Fine-tuning
+
+After pre-training, BERT is fine-tuned on downstream tasks with minimal architecture changes:
+- **Classification:** Use `[CLS]` representation + linear layer
+- **Token-level tasks (NER):** Use per-token representations + linear layer
+- **Question answering:** Predict start and end positions in the input
+
+## GPT: Generative Pre-trained Transformer
+
+**GPT** (Radford et al., 2018) uses only the **Transformer decoder** and is designed for **generation** tasks.
+
+### Architecture
+
+- Stack of Transformer decoder layers with **masked self-attention**
+- Each token can only attend to **previous** tokens (autoregressive / left-to-right)
+- No cross-attention (no encoder)
+
+### Pre-training Objective
+
+Standard **language modeling** -- predict the next token:
+
+$$
+P(x_t | x_1, \ldots, x_{t-1}) = \text{softmax}(\mathbf{W} \cdot \mathbf{h}_t)
+$$
+
+$$
+\mathcal{L} = -\sum_{t=1}^{T} \log P(x_t | x_{<t})
+$$
+
+### Autoregressive Generation
+
+At inference time, GPT generates text token by token:
+
+1. Process the prompt
+2. Sample or select the next token from the output distribution
+3. Append it to the input and repeat
+
+This autoregressive nature means GPT is a natural fit for **text generation, code generation, and sequence completion**.
+
+### GPT Scaling
+
+| Model | Parameters | Layers | Hidden Size |
+|-------|-----------|--------|-------------|
+| GPT-1 | 117M | 12 | 768 |
+| GPT-2 | 1.5B | 48 | 1600 |
+| GPT-3 | 175B | 96 | 12288 |
+
+Scaling up has shown consistent improvements -- a phenomenon known as **scaling laws**.
+
+## BERT vs GPT
+
+| Feature | BERT | GPT |
+|---------|------|-----|
+| Architecture | Encoder only | Decoder only |
+| Attention | Bidirectional | Unidirectional (causal) |
+| Pre-training | MLM + NSP | Next token prediction |
+| Strength | Understanding, classification | Generation, completion |
+| Context | Sees entire input at once | Only sees past tokens |
+| Fine-tuning | Add task-specific head | Prompt-based / fine-tune |
+
+## Vision Transformer (ViT)
+
+**ViT** (Dosovitskiy et al., 2020) applies the Transformer to **images** by treating an image as a sequence of patches.
+
+### How ViT Works
+
+**Step 1: Patch Embedding.** Split the image into fixed-size patches (e.g., $16 \times 16$ pixels). For an image of size $H \times W$ with patch size $P$:
+
+$$
+N = \frac{H \times W}{P^2}
+$$
+
+Each patch is flattened into a vector and linearly projected:
+
+$$
+\mathbf{z}_i = \mathbf{x}_i^{\text{patch}} \mathbf{W}_E + \mathbf{b}_E, \quad i = 1, \ldots, N
+$$
+
+**Step 2: Add Position Embeddings and CLS Token:**
+
+$$
+\mathbf{Z}_0 = [\mathbf{z}_{\text{CLS}}; \mathbf{z}_1; \mathbf{z}_2; \ldots; \mathbf{z}_N] + \mathbf{E}_{\text{pos}}
+$$
+
+**Step 3: Pass through Transformer Encoder:**
+
+$$
+\mathbf{Z}_L = \text{TransformerEncoder}(\mathbf{Z}_0)
+$$
+
+**Step 4: Classification:** Use the `[CLS]` token output for image classification:
+
+$$
+\mathbf{y} = \text{MLP}(\mathbf{z}_{\text{CLS}}^{(L)})
+$$
+
+### ViT Key Insight
+
+ViT demonstrates that the Transformer's self-attention can replace convolutional layers entirely. Each patch attends to every other patch, capturing both local and global relationships. However, ViT requires **large-scale pre-training** data to outperform CNNs (it lacks the inductive biases of convolutions).
+
+## Worked Example: ViT Patch Count
+
+For a $224 \times 224$ image with patch size $P = 16$:
+
+$$
+N = \frac{224 \times 224}{16 \times 16} = \frac{50176}{256} = 196 \text{ patches}
+$$
+
+Each patch is a vector of dimension $16 \times 16 \times 3 = 768$ (for RGB). With the `[CLS]` token, the sequence length is $197$.
+
+## Implications for Robotics
+
+- **BERT-style models** can encode sensor descriptions, task specifications, or scene descriptions for robot understanding
+- **GPT-style models** can generate action sequences, plans, or code for robot execution
+- **ViT-style models** can process visual observations from robot cameras without hand-crafted feature extractors
+
+## Key Takeaway
+
+> BERT uses bidirectional attention for understanding tasks, GPT uses causal attention for generation tasks, and ViT applies the Transformer to vision by treating images as patch sequences. These variants demonstrate the Transformer's versatility as a general-purpose architecture across modalities.
+
+Unlocking the **LANGUAGE PROCESSOR** gives your robot the ability to understand and generate structured sequences -- a crucial capability for following instructions and communicating.

@@ -1,0 +1,145 @@
+---
+title: "LSTM and GRU"
+lessonId: "advanced-arch-02-lstm-gru"
+moduleId: "05-advanced-architectures"
+order: 2
+xpReward: 175
+isBonus: true
+requiresParts: []
+journalEntry: "MEMORY GATES INSTALLED. Selective remembering and forgetting -- the key to long-term learning."
+---
+
+# LSTM and GRU
+
+The vanishing gradient problem makes vanilla RNNs unable to learn long-range dependencies. **Long Short-Term Memory (LSTM)** and **Gated Recurrent Unit (GRU)** networks solve this by introducing **gating mechanisms** that control the flow of information.
+
+## Long Short-Term Memory (LSTM)
+
+LSTM was introduced by Hochreiter and Schmidhuber (1997). The key innovation is a **cell state** $\mathbf{c}_t$ -- a separate memory pathway that can carry information across many time steps with minimal modification.
+
+### LSTM Cell Components
+
+An LSTM cell has three gates and a cell state update:
+
+**1. Forget Gate** -- decides what to discard from the cell state:
+
+$$
+\mathbf{f}_t = \sigma(\mathbf{W}_f [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f)
+$$
+
+**2. Input Gate** -- decides what new information to store:
+
+$$
+\mathbf{i}_t = \sigma(\mathbf{W}_i [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_i)
+$$
+
+**3. Candidate Cell State** -- creates new candidate values:
+
+$$
+\tilde{\mathbf{c}}_t = \tanh(\mathbf{W}_c [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_c)
+$$
+
+**4. Cell State Update** -- combines old memory (filtered by forget gate) with new memory (filtered by input gate):
+
+$$
+\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t
+$$
+
+**5. Output Gate** -- decides what to output based on the cell state:
+
+$$
+\mathbf{o}_t = \sigma(\mathbf{W}_o [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_o)
+$$
+
+$$
+\mathbf{h}_t = \mathbf{o}_t \odot \tanh(\mathbf{c}_t)
+$$
+
+Here $\odot$ denotes element-wise (Hadamard) multiplication and $\sigma$ is the sigmoid function.
+
+### Why LSTMs Solve Vanishing Gradients
+
+The cell state $\mathbf{c}_t$ acts as a **gradient highway**. During backpropagation, the gradient flows through the cell state with multiplicative factors of $\mathbf{f}_t$ (between 0 and 1). When the forget gate is close to 1, gradients flow almost unchanged across many time steps -- no vanishing.
+
+$$
+\frac{\partial \mathbf{c}_t}{\partial \mathbf{c}_{t-1}} = \mathbf{f}_t
+$$
+
+This is fundamentally different from vanilla RNNs where the gradient must pass through a $\tanh$ nonlinearity and weight multiplication at every step.
+
+## Gated Recurrent Unit (GRU)
+
+GRU (Cho et al., 2014) simplifies the LSTM by merging the cell state and hidden state into a single state vector, and using only **two gates** instead of three.
+
+**1. Reset Gate** -- determines how much past information to forget:
+
+$$
+\mathbf{r}_t = \sigma(\mathbf{W}_r [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_r)
+$$
+
+**2. Update Gate** -- determines the balance between old and new information (acts as both forget and input gate):
+
+$$
+\mathbf{z}_t = \sigma(\mathbf{W}_z [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_z)
+$$
+
+**3. Candidate Hidden State:**
+
+$$
+\tilde{\mathbf{h}}_t = \tanh(\mathbf{W}_h [\mathbf{r}_t \odot \mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_h)
+$$
+
+**4. Hidden State Update:**
+
+$$
+\mathbf{h}_t = (1 - \mathbf{z}_t) \odot \mathbf{h}_{t-1} + \mathbf{z}_t \odot \tilde{\mathbf{h}}_t
+$$
+
+When $\mathbf{z}_t \approx 0$, the hidden state is copied from the previous step (long-term memory). When $\mathbf{z}_t \approx 1$, the hidden state is replaced with new information.
+
+## LSTM vs GRU Comparison
+
+| Feature | LSTM | GRU |
+|---------|------|-----|
+| Gates | 3 (forget, input, output) | 2 (reset, update) |
+| State vectors | 2 ($\mathbf{h}_t$, $\mathbf{c}_t$) | 1 ($\mathbf{h}_t$) |
+| Parameters | More (4 weight matrices) | Fewer (3 weight matrices) |
+| Training speed | Slower | Faster |
+| Performance | Better on complex, long sequences | Comparable on shorter sequences |
+| Output control | Explicit output gate | No separate output gate |
+
+## Worked Example: LSTM Forget Gate
+
+Suppose $\mathbf{h}_{t-1} = [0.5]$, $\mathbf{x}_t = [1.0]$, and the forget gate weights give:
+
+$$
+\mathbf{W}_f [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f = 2.0
+$$
+
+Then $\mathbf{f}_t = \sigma(2.0) = \frac{1}{1 + e^{-2}} \approx 0.88$.
+
+This means the LSTM **retains 88%** of the previous cell state $\mathbf{c}_{t-1}$. The forget gate has learned that past information is still relevant at this time step.
+
+If instead the pre-activation were $-3.0$, then $\mathbf{f}_t = \sigma(-3.0) \approx 0.05$, meaning the LSTM would **discard 95%** of the old cell state -- it has learned that previous information is no longer relevant.
+
+## Bidirectional RNNs
+
+For tasks where both past and future context are available (e.g., sentence classification), we can use **bidirectional** architectures:
+
+$$
+\overrightarrow{\mathbf{h}}_t = \text{LSTM}_{\text{forward}}(\mathbf{x}_t, \overrightarrow{\mathbf{h}}_{t-1})
+$$
+
+$$
+\overleftarrow{\mathbf{h}}_t = \text{LSTM}_{\text{backward}}(\mathbf{x}_t, \overleftarrow{\mathbf{h}}_{t+1})
+$$
+
+$$
+\mathbf{h}_t = [\overrightarrow{\mathbf{h}}_t ; \overleftarrow{\mathbf{h}}_t]
+$$
+
+The final representation at each time step combines information from both directions.
+
+## Key Takeaway
+
+> LSTMs solve vanishing gradients with a cell state that acts as a gradient highway, controlled by forget, input, and output gates. GRUs achieve similar results with a simpler two-gate architecture. Both enable learning long-range dependencies that vanilla RNNs cannot capture.

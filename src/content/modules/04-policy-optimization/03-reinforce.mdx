@@ -1,0 +1,245 @@
+---
+title: "REINFORCE Algorithm"
+lessonId: "pg-03-reinforce"
+moduleId: "04-policy-optimization"
+order: 3
+xpReward: 250
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP"]
+---
+
+# REINFORCE and Variance Reduction
+
+We derived the policy gradient. Now we turn it into a practical algorithm: **REINFORCE** (Williams, 1992). We will also tackle its biggest weakness -- high variance -- through **temporal structure** and **baseline subtraction**.
+
+## The Vanilla Policy Gradient (REINFORCE)
+
+From the previous lesson, our gradient estimate is:
+
+$$
+\hat{g} = \frac{1}{m} \sum_{i=1}^{m} \left(\sum_{t=0}^{H} \nabla_\theta \log \pi_\theta(u_t^{(i)} | s_t^{(i)})\right) R(\tau^{(i)})
+$$
+
+The **REINFORCE** algorithm simply uses this gradient in a loop:
+
+### Algorithm: REINFORCE (Monte Carlo Policy Gradient)
+
+> 1. Initialize policy parameters $\theta$
+> 2. **for** iteration $= 1, 2, \ldots$ **do**
+> 3. &emsp; Collect $m$ trajectories $\tau^{(1)}, \ldots, \tau^{(m)}$ by executing $\pi_\theta$
+> 4. &emsp; For each trajectory, compute $R(\tau^{(i)}) = \sum_{t=0}^{H} R(s_t^{(i)}, u_t^{(i)})$
+> 5. &emsp; Compute gradient estimate: $\hat{g} = \frac{1}{m}\sum_{i=1}^{m} \nabla_\theta \log P(\tau^{(i)}; \theta) \cdot R(\tau^{(i)})$
+> 6. &emsp; Update: $\theta \leftarrow \theta + \alpha \hat{g}$
+> 7. **end for**
+
+## The High Variance Problem
+
+While unbiased, the vanilla gradient estimate has **extremely high variance**. Why?
+
+1. **Entire trajectory return:** Each action's gradient is weighted by the return of the *entire* trajectory. But an action at time $t$ cannot affect rewards that already happened at times $0, 1, \ldots, t-1$.
+
+2. **All-positive or all-negative returns:** If all returns are positive (common in many tasks), the gradient tries to increase the probability of *all* trajectories -- just more for better ones and less for worse ones. This wastes gradient signal.
+
+3. **Single-sample Q estimate:** We estimate $Q^\pi(s, u) = \mathbb{E}[r_0 + r_1 + r_2 + \cdots | s_0 = s, a_0 = a]$ from a single rollout, which has very high variance.
+
+## Temporal Structure (Causality)
+
+### The Key Insight
+
+Consider the gradient estimate expanded:
+
+$$
+\hat{g} = \frac{1}{m}\sum_{i=1}^{m}\left(\sum_{t=0}^{H-1} \nabla_\theta \log \pi_\theta(u_t^{(i)}|s_t^{(i)})\right)\left(\sum_{t'=0}^{H-1} R(s_{t'}^{(i)}, u_{t'}^{(i)})\right)
+$$
+
+We can split the total return for each log-probability term. The reward at time step $t'$ can be split into:
+
+- Past rewards: $\sum_{k=0}^{t-1} R(s_k^{(i)}, u_k^{(i)})$ -- happened before action $u_t$
+- Future rewards: $\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)})$ -- happened after action $u_t$
+
+The past rewards **do not depend on action $u_t^{(i)}$**, so including them only adds noise. We can remove them!
+
+### The Improved Estimator
+
+After exploiting temporal structure, we get:
+
+$$
+\hat{g} = \frac{1}{m} \sum_{i=1}^{m} \sum_{t=0}^{H-1} \nabla_\theta \log \pi_\theta(u_t^{(i)} | s_t^{(i)}) \left(\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)})\right)
+$$
+
+Each action's gradient is now weighted only by the **future return** (reward-to-go) from that time step onward, not by past rewards that the action could not have influenced.
+
+## Baseline Subtraction
+
+### Motivation
+
+Even with temporal structure, variance is still high. The idea of a **baseline** is to subtract a constant (or state-dependent function) from the return:
+
+$$
+\hat{g} = \frac{1}{m} \sum_{i=1}^{m} \nabla_\theta \log P(\tau^{(i)}; \theta) \left(R(\tau^{(i)}) - b\right)
+$$
+
+### Proof That the Baseline Does Not Introduce Bias
+
+We need to show $\mathbb{E}[\nabla_\theta \log P(\tau; \theta) \cdot b] = 0$ for any baseline $b$ that does not depend on the action in the log-probability:
+
+$$
+\mathbb{E}[\nabla_\theta \log P(\tau; \theta) \cdot b] = \sum_\tau P(\tau; \theta) \nabla_\theta \log P(\tau; \theta) \cdot b
+$$
+
+$$
+= \sum_\tau P(\tau; \theta) \frac{\nabla_\theta P(\tau; \theta)}{P(\tau; \theta)} \cdot b
+$$
+
+$$
+= \sum_\tau \nabla_\theta P(\tau; \theta) \cdot b
+$$
+
+$$
+= \nabla_\theta \left(\sum_\tau P(\tau; \theta)\right) \cdot b = \nabla_\theta(1) \cdot b = 0
+$$
+
+Since $\sum_\tau P(\tau; \theta) = 1$ always. Therefore subtracting *any* baseline $b$ that does not depend on the action keeps the estimator **unbiased** while potentially reducing variance.
+
+## Baseline Choices
+
+### 1. Constant Baseline
+
+The simplest choice: $b = \mathbb{E}[R(\tau)] \approx \frac{1}{m}\sum_{i=1}^{m} R(\tau^{(i)})$
+
+Just the average return across your batch of trajectories.
+
+### 2. Optimal Constant Baseline
+
+The baseline that minimizes variance of the gradient estimate:
+
+$$
+b^* = \frac{\sum_i \left(\nabla_\theta \log P(\tau^{(i)}; \theta)\right)^2 R(\tau^{(i)})}{\sum_i \left(\nabla_\theta \log P(\tau^{(i)}; \theta)\right)^2}
+$$
+
+This weights returns by the squared magnitude of their score functions.
+
+### 3. Time-Dependent Baseline
+
+A different baseline for each time step:
+
+$$
+b_t = \frac{1}{m}\sum_{i=1}^{m}\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)})
+$$
+
+### 4. State-Dependent Baseline: The Value Function
+
+The best practical choice -- use the **state value function** as baseline:
+
+$$
+b(s_t) = \mathbb{E}\left[r_t + r_{t+1} + r_{t+2} + \cdots + r_{H-1}\right] = V^\pi(s_t)
+$$
+
+**Intuition:** Increase the log-probability of action proportionally to *how much better its returns are than the expected return* under the current policy. This is exactly the **advantage**:
+
+$$
+A^\pi(s, a) = Q^\pi(s, a) - V^\pi(s)
+$$
+
+## The Full Gradient Estimate with Baseline
+
+Combining temporal structure and the value function baseline:
+
+$$
+\hat{g} = \frac{1}{m}\sum_{i=1}^{m}\sum_{t=0}^{H-1} \nabla_\theta \log \pi_\theta(u_t^{(i)} | s_t^{(i)}) \left(\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)}) - V^\pi(s_t^{(i)})\right)
+$$
+
+The term $\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)}) - V^\pi(s_t^{(i)})$ is a **sample-based estimate of the advantage** $\hat{A}_t$.
+
+## The Vanilla Policy Gradient Algorithm
+
+This is the complete practical algorithm from (Schulman et al.):
+
+> **Algorithm: "Vanilla" Policy Gradient**
+>
+> Initialize policy parameter $\theta$, baseline $b$
+>
+> **for** iteration $= 1, 2, \ldots$ **do**
+> 1. Collect a set of trajectories by executing the current policy
+> 2. At each timestep in each trajectory, compute:
+>    - the return $R_t = \sum_{t'=t}^{T-1} \gamma^{t'-t} r_{t'}$
+>    - the advantage estimate $\hat{A}_t = R_t - b(s_t)$
+> 3. Re-fit the baseline, by minimizing $\|b(s_t) - R_t\|^2$, summed over all trajectories and timesteps
+> 4. Update the policy, using a policy gradient estimate $\hat{g}$, which is a sum of terms $\nabla_\theta \log \pi(a_t | s_t, \theta) \hat{A}_t$
+>
+> **end for**
+
+Note the introduction of the **discount factor** $\gamma$ in the return computation $R_t = \sum_{t'=t}^{T-1}\gamma^{t'-t}r_{t'}$. This further reduces variance by down-weighting distant future rewards.
+
+## Estimating the Value Function Baseline
+
+How do we estimate $V^\pi(s)$ for the baseline? Two approaches:
+
+### Monte Carlo Estimation
+
+1. Initialize $V_{\phi_0}^\pi$ (a neural network with parameters $\phi$)
+2. Collect trajectories $\tau_1, \ldots, \tau_m$
+3. Regress against empirical returns:
+
+$$
+\phi_{i+1} \leftarrow \arg\min_\phi \frac{1}{m}\sum_{i=1}^{m}\sum_{t=0}^{H-1}\left(V_\phi^\pi(s_t^{(i)}) - \sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)})\right)^2
+$$
+
+### Bootstrap Estimation
+
+Use the Bellman equation:
+
+$$
+V^\pi(s) = \sum_u \pi(u|s) \sum_{s'} P(s'|s, u)[R(s, u, s') + \gamma V^\pi(s')]
+$$
+
+1. Initialize $V_{\phi_0}^\pi$
+2. Collect data $\{s, u, s', r\}$
+3. Fitted V iteration:
+
+$$
+\phi_{i+1} \leftarrow \min_\phi \sum_{(s, u, s', r)} \|r + V_{\phi_i}^\pi(s') - V_\phi(s)\|_2^2 + \lambda \|\phi - \phi_i\|_2^2
+$$
+
+The regularization term $\lambda\|\phi - \phi_i\|_2^2$ prevents the value function from changing too drastically between iterations.
+
+## Variance Reduction by Discounting
+
+Recall:
+
+$$
+Q^\pi(s, u) = \mathbb{E}[r_0 + r_1 + r_2 + \cdots | s_0 = s, a_0 = a]
+$$
+
+Estimating this from a single rollout has very high variance because distant rewards have high uncertainty. We introduce the **discount factor** $\gamma$ as a hyperparameter:
+
+$$
+Q^{\pi, \gamma}(s, u) = \mathbb{E}[r_0 + \gamma r_1 + \gamma^2 r_2 + \cdots | s_0 = s, u_0 = u]
+$$
+
+With $\gamma < 1$, distant rewards are down-weighted, reducing variance at the cost of some bias.
+
+## Worked Example: REINFORCE with Baseline
+
+**Setup:** One state $s$, two actions $a_1, a_2$. Gaussian policy on a 1D continuous action. We collect 3 trajectories:
+
+| Trajectory | Action $u$ | Return $R(\tau)$ |
+|-----------|-----------|-----------------|
+| 1 | 0.5 | +10 |
+| 2 | -0.3 | +2 |
+| 3 | 0.8 | +12 |
+
+**Without baseline ($b = 0$):** All returns are positive, so we push up the probability of ALL actions. The gradient signal is noisy.
+
+**With constant baseline $b = \bar{R} = 8$:**
+
+| Trajectory | $R(\tau) - b$ | Effect |
+|-----------|--------------|--------|
+| 1 | +2 | Slightly increase $P(u=0.5)$ |
+| 2 | -6 | Decrease $P(u=-0.3)$ |
+| 3 | +4 | Increase $P(u=0.8)$ |
+
+Now the gradient has clear positive and negative signals, much more informative!
+
+## Key Takeaway
+
+> REINFORCE computes policy gradients from sampled trajectories. The raw estimator has high variance, which we reduce through (1) **temporal structure** (only future rewards), (2) **baseline subtraction** (especially $V^\pi(s)$), and (3) **discounting**. The Vanilla Policy Gradient algorithm combines all these ideas into a practical method that forms the foundation for all advanced policy gradient algorithms.

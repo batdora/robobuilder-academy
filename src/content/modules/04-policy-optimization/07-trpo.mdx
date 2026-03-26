@@ -1,0 +1,234 @@
+---
+title: "Trust Region Policy Optimization (TRPO)"
+lessonId: "pg-07-trpo"
+moduleId: "04-policy-optimization"
+order: 7
+xpReward: 300
+requiresParts: ["MOTOR_CORTEX"]
+---
+
+# Trust Region Policy Optimization (TRPO)
+
+TRPO (Schulman, Levine, Moritz, Jordan, Abbeel, 2015) turns the monotonic improvement theory into a practical algorithm. It optimizes a **surrogate objective** subject to a **KL divergence constraint**, ensuring stable, guaranteed policy improvement at every step.
+
+## Motivation: Why We Need Trust Regions
+
+Recall the fundamental problem with policy gradient methods and step sizes:
+
+- **Supervised learning:** Step too far? The next update corrects for it. The training data is fixed.
+- **Reinforcement learning:** Step too far? You get a terrible policy. The next mini-batch is collected under this terrible policy! It is not clear how to recover short of going back and shrinking the step.
+
+A **trust region** defines a region around the current parameters where our local approximation of the objective is trustworthy. We optimize within this region.
+
+## The Surrogate Loss Function
+
+### Derivation from Importance Sampling
+
+We want to optimize $U(\theta)$. Using importance sampling with the old policy $\theta_{\text{old}}$:
+
+$$
+U(\theta) = \mathbb{E}_{\tau \sim \theta_{\text{old}}}\left[\frac{P(\tau|\theta)}{P(\tau|\theta_{\text{old}})} R(\tau)\right]
+$$
+
+Taking the gradient:
+
+$$
+\nabla_\theta U(\theta) = \mathbb{E}_{\tau \sim \theta_{\text{old}}}\left[\frac{\nabla_\theta P(\tau|\theta)}{P(\tau|\theta_{\text{old}})} R(\tau)\right]
+$$
+
+Evaluating at $\theta = \theta_{\text{old}}$:
+
+$$
+\nabla_\theta U(\theta)\big|_{\theta = \theta_{\text{old}}} = \mathbb{E}_{\tau \sim \theta_{\text{old}}}\left[\frac{\nabla_\theta P(\tau|\theta)\big|_{\theta_{\text{old}}}}{P(\tau|\theta_{\text{old}})} R(\tau)\right]
+$$
+
+This gives us the policy gradient, but computed from data collected under the *old* policy. This is the basis for the surrogate loss.
+
+### The Surrogate Objective
+
+The **surrogate loss** (also called the importance-sampled objective) is:
+
+$$
+L(\pi) = \mathbb{E}_{\pi_{\text{old}}}\left[\frac{\pi(a|s)}{\pi_{\text{old}}(a|s)} A^{\pi_{\text{old}}}(s, a)\right]
+$$
+
+where:
+- $\frac{\pi(a|s)}{\pi_{\text{old}}(a|s)}$ is the **importance sampling ratio** (also called the probability ratio)
+- $A^{\pi_{\text{old}}}(s, a)$ is the advantage under the old policy
+
+**Key property:** At $\pi = \pi_{\text{old}}$, we have:
+- $L(\pi_{\text{old}}) = 0$ (the ratio is 1, and the expected advantage is 0)
+- $\nabla_\theta L(\pi)\big|_{\pi = \pi_{\text{old}}} = \nabla_\theta J(\pi)\big|_{\pi = \pi_{\text{old}}}$ (same gradient as the true objective)
+
+So the surrogate loss is a **local approximation** of the true objective that is exact up to first order.
+
+### The Problem: Surrogate Loss Can Be Misleading
+
+The surrogate loss $L(\pi)$ is only a good approximation near $\pi_{\text{old}}$. If we move too far, $L(\pi)$ might increase while the true performance $J(\pi)$ decreases. This is because:
+1. The importance sampling ratios $\frac{\pi(a|s)}{\pi_{\text{old}}(a|s)}$ can become very large (high variance)
+2. The advantage $A^{\pi_{\text{old}}}$ was estimated under the old policy and may not reflect the new policy's dynamics
+
+**Solution:** Constrain how far the new policy can deviate from the old one using KL divergence.
+
+## TRPO: The Constrained Optimization
+
+TRPO solves:
+
+$$
+\max_\pi \; L(\pi) = \mathbb{E}_{\pi_{\text{old}}}\left[\frac{\pi(a|s)}{\pi_{\text{old}}(a|s)} A^{\pi_{\text{old}}}(s, a)\right]
+$$
+
+$$
+\text{subject to} \quad \mathbb{E}_{\pi_{\text{old}}}\left[D_{KL}\left(\pi_{\text{old}}(\cdot|s) \| \pi(\cdot|s)\right)\right] \leq \epsilon
+$$
+
+where $\epsilon$ is a hyperparameter (typically $\epsilon = 0.01$) that limits the allowed policy change.
+
+**In words:** Maximize the expected advantage of the new policy over the old policy, but don't let the new policy differ too much from the old one (as measured by average KL divergence).
+
+## TRPO Algorithm
+
+> **Algorithm: TRPO**
+>
+> **for** iteration $= 1, 2, \ldots$ **do**
+> 1. Run policy $\pi_{\theta_{\text{old}}}$ for $T$ timesteps or $N$ trajectories
+> 2. Estimate advantage function $\hat{A}_t$ at all timesteps (using GAE)
+> 3. Compute the policy gradient $g = \nabla_\theta L(\theta)\big|_{\theta_{\text{old}}}$
+> 4. Use **Conjugate Gradient** (with Hessian-vector products) to compute $\tilde{g} = F^{-1}g$
+> 5. Do **line search** on surrogate loss and KL constraint:
+>    - Compute step size: $\alpha = \sqrt{\frac{2\epsilon}{\tilde{g}^\top F \tilde{g}}}$
+>    - Try $\theta_{\text{new}} = \theta_{\text{old}} + \alpha \tilde{g}$
+>    - Backtrack (shrink $\alpha$) if KL constraint is violated or surrogate loss decreases
+> **end for**
+
+## Detailed Steps
+
+### Step 3: Computing the Policy Gradient
+
+The gradient of the surrogate loss:
+
+$$
+g = \nabla_\theta \mathbb{E}_{\pi_{\text{old}}}\left[\frac{\pi_\theta(a|s)}{\pi_{\theta_{\text{old}}}(a|s)} \hat{A}_t\right]\bigg|_{\theta = \theta_{\text{old}}}
+$$
+
+$$
+= \mathbb{E}_{\pi_{\text{old}}}\left[\nabla_\theta \log \pi_\theta(a|s)\big|_{\theta_{\text{old}}} \hat{A}_t\right]
+$$
+
+This is the standard policy gradient.
+
+### Step 4: Conjugate Gradient (CG) for $F^{-1}g$
+
+We need to solve $Fx = g$ without forming $F$ explicitly. The CG algorithm:
+
+> 1. Initialize $x_0 = 0$, $r_0 = g$, $p_0 = g$
+> 2. **for** $k = 0, 1, \ldots, K$ **do**
+>    - $\alpha_k = \frac{r_k^\top r_k}{p_k^\top F p_k}$
+>    - $x_{k+1} = x_k + \alpha_k p_k$
+>    - $r_{k+1} = r_k - \alpha_k F p_k$
+>    - $\beta_{k+1} = \frac{r_{k+1}^\top r_{k+1}}{r_k^\top r_k}$
+>    - $p_{k+1} = r_{k+1} + \beta_{k+1} p_k$
+> 3. **end for**
+> 4. Return $x_K \approx F^{-1}g$
+
+The Fisher-vector product $Fv$ can be computed efficiently using automatic differentiation (specifically, Hessian-vector products of the KL divergence).
+
+Typically $K = 10$ iterations of CG suffice.
+
+### Step 5: Line Search with Backtracking
+
+The step size $\alpha = \sqrt{\frac{2\epsilon}{\tilde{g}^\top F \tilde{g}}}$ is the theoretically correct size, but we verify it:
+
+1. Compute $\theta_{\text{new}} = \theta_{\text{old}} + \alpha \tilde{g}$
+2. Check: Does $L(\theta_{\text{new}}) > L(\theta_{\text{old}})$? (Surrogate loss improved?)
+3. Check: Is $\bar{D}_{KL}(\pi_{\theta_{\text{old}}} \| \pi_{\theta_{\text{new}}}) \leq \epsilon$? (KL constraint satisfied?)
+4. If either check fails, shrink $\alpha \leftarrow \alpha / 2$ and try again
+5. Repeat until both checks pass (or give up after max backtracks)
+
+## Evaluating the KL Constraint
+
+The KL divergence between policies over trajectories simplifies because the dynamics cancel out:
+
+$$
+KL(P(\tau;\theta) \| P(\tau;\theta+\delta\theta)) = \sum_\tau P(\tau;\theta) \log \frac{\prod_{t=0}^{H-1}\pi_\theta(u_t|s_t)}{\prod_{t=0}^{H-1}\pi_{\theta+\delta\theta}(u_t|s_t)}
+$$
+
+$$
+\approx \frac{1}{M}\sum_{(s,u) \in \text{rollouts under } \theta} \log \frac{\pi_\theta(u|s)}{\pi_{\theta+\delta\theta}(u|s)}
+$$
+
+This can be computed entirely from the sampled state-action pairs and the policy parameters.
+
+## Guaranteed Monotonic Improvement
+
+TRPO inherits the theoretical guarantee:
+
+$$
+J(\pi_{\text{new}}) \geq L_{\pi_{\text{old}}}(\pi_{\text{new}}) - C \cdot D_{KL}^{\max}(\pi_{\text{old}} \| \pi_{\text{new}})
+$$
+
+By constraining $D_{KL}^{\max}(\pi_{\text{old}} \| \pi_{\text{new}}) \leq \epsilon$, and ensuring $L_{\pi_{\text{old}}}(\pi_{\text{new}}) > 0$, we guarantee improvement.
+
+In practice, TRPO uses the **average** KL divergence (over states) rather than the **maximum** KL divergence, which works well empirically even though the theoretical bound uses the maximum.
+
+## Practical Results
+
+TRPO was demonstrated on:
+
+- **Locomotion tasks** (Hopper, Walker, Swimmer) in MuJoCo physics simulator
+- **Atari games** (Pong, Enduro, Beamrider, Q*bert) with raw pixel input
+- **Robotic locomotion** using TRPO + GAE (humanoid walking learned from scratch)
+
+Learning curves showed TRPO consistently outperforming:
+- Vanilla policy gradient (Single Path)
+- Natural gradient without trust region
+- CEM (Cross-Entropy Method)
+- CMA-ES (Covariance Matrix Adaptation)
+- RWR (Reward-Weighted Regression)
+
+## Computational Cost Breakdown
+
+| Step | Cost | Notes |
+|------|------|-------|
+| Collect trajectories | $O(T)$ per step | Simulation time |
+| Compute advantages (GAE) | $O(T)$ | Single backward pass |
+| Policy gradient $g$ | $O(T \cdot n)$ | $n$ = number of parameters |
+| CG for $F^{-1}g$ | $O(K \cdot T \cdot n)$ | $K$ CG iterations, each needs $Fv$ |
+| Line search | $O(L \cdot T)$ | $L$ backtracks, each evaluates $L$ and KL |
+
+The most expensive part is the CG computation, due to the repeated Fisher-vector products.
+
+## Limitations of TRPO
+
+1. **Conjugate gradient is complex to implement:** Requires careful computation of Fisher-vector products via automatic differentiation
+2. **Not compatible with all architectures:** Networks with dropout, or parameter sharing between policy and value function, make the KL constraint harder to enforce
+3. **Cannot use standard optimizers:** TRPO uses its own second-order update; it cannot leverage Adam, RMSProp, etc.
+4. **Computationally expensive:** CG iterations add significant overhead
+
+These limitations motivate **PPO** (next lesson), which achieves similar performance with a much simpler algorithm.
+
+## Worked Example: TRPO Update Sketch
+
+**Given:**
+- Policy gradient: $g = [0.5, -0.3, 0.8]$
+- After CG: $\tilde{g} = F^{-1}g = [0.4, -0.5, 0.6]$
+- $\tilde{g}^\top F \tilde{g} = 0.5$
+- Trust region size: $\epsilon = 0.01$
+
+**Step size:**
+
+$$
+\alpha = \sqrt{\frac{2\epsilon}{\tilde{g}^\top F \tilde{g}}} = \sqrt{\frac{2 \times 0.01}{0.5}} = \sqrt{0.04} = 0.2
+$$
+
+**Update:**
+
+$$
+\theta_{\text{new}} = \theta_{\text{old}} + 0.2 \times [0.4, -0.5, 0.6] = \theta_{\text{old}} + [0.08, -0.10, 0.12]
+$$
+
+Then we verify: Is $D_{KL}(\pi_{\text{old}} \| \pi_{\text{new}}) \leq 0.01$? If yes, accept. If not, try $\alpha = 0.1$ and check again.
+
+## Key Takeaway
+
+> **TRPO** maximizes a surrogate objective $L(\pi) = \mathbb{E}[\frac{\pi(a|s)}{\pi_{\text{old}}(a|s)}A^{\pi_{\text{old}}}(s,a)]$ subject to a KL divergence constraint $\mathbb{E}[D_{KL}(\pi_{\text{old}} \| \pi)] \leq \epsilon$. It uses conjugate gradient to compute $F^{-1}g$ and line search to ensure constraint satisfaction. This guarantees monotonic improvement and produces robust, stable training. However, the implementation complexity motivates the simpler PPO algorithm.

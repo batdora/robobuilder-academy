@@ -1,0 +1,76 @@
+{
+  "quizId": "quiz-01-intro-robotics",
+  "moduleId": "01-foundations",
+  "title": "Intro to Robotics Quiz",
+  "xpReward": 100,
+  "questions": [
+    {
+      "id": "q1-what-is-robot",
+      "type": "multiple-choice",
+      "question": "Which of the following best describes a robot?",
+      "options": [
+        "A machine that looks like a human",
+        "A programmable machine capable of sensing, planning, and acting",
+        "Any electronic device",
+        "A computer with arms"
+      ],
+      "correctIndex": 1,
+      "explanation": "A robot is defined by its ability to sense its environment, plan actions, and execute them — not by its appearance.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q2-sense-plan-act",
+      "type": "multiple-choice",
+      "question": "In the sense-plan-act cycle, what is the correct order of operations?",
+      "options": [
+        "Act, then sense, then plan",
+        "Plan, then sense, then act",
+        "Sense the environment, plan a course of action, then act on it",
+        "Sense and act simultaneously without planning"
+      ],
+      "correctIndex": 2,
+      "explanation": "The classic sense-plan-act paradigm starts by perceiving the environment through sensors, then computing a plan, and finally executing actions through actuators.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q3-degrees-of-freedom",
+      "type": "multiple-choice",
+      "question": "A robotic arm has 3 revolute joints, each rotating around a single axis. How many degrees of freedom (DOF) does it have?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "6"
+      ],
+      "correctIndex": 2,
+      "explanation": "Each independent revolute joint contributes one degree of freedom. Three single-axis revolute joints give the arm 3 DOF total.",
+      "bloomLevel": "apply"
+    },
+    {
+      "id": "q4-actuators-vs-sensors",
+      "type": "multiple-choice",
+      "question": "Which of the following is an actuator rather than a sensor?",
+      "options": [
+        "LIDAR scanner",
+        "Servo motor",
+        "Inertial measurement unit (IMU)",
+        "RGB camera"
+      ],
+      "correctIndex": 1,
+      "explanation": "A servo motor is an actuator — it produces motion. LIDAR, IMUs, and cameras are all sensors that gather information about the environment.",
+      "bloomLevel": "analyze"
+    },
+    {
+      "id": "q5-open-vs-closed-loop",
+      "type": "true-false",
+      "question": "An open-loop control system uses feedback from sensors to correct its output.",
+      "options": [
+        "True",
+        "False"
+      ],
+      "correctIndex": 1,
+      "explanation": "Open-loop control does NOT use feedback. It executes commands without checking the result. Closed-loop (feedback) control measures the output and adjusts accordingly.",
+      "bloomLevel": "understand"
+    }
+  ]
+}

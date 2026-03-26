@@ -1,0 +1,173 @@
+---
+title: "GNN Applications in Robotics"
+lessonId: "advanced-arch-09-gnn-applications"
+moduleId: "05-advanced-architectures"
+order: 9
+xpReward: 200
+robotPart: "RELATIONAL_REASONING_UNIT"
+isBonus: true
+requiresParts: []
+journalEntry: "RELATIONAL REASONING UNIT INSTALLED. I can now understand how objects relate to each other in my world."
+---
+
+# GNN Applications in Robotics
+
+GNNs are not just theoretical -- they have powerful applications in robotics, from understanding scenes to planning manipulation strategies. This lesson covers how graph-structured reasoning helps robots interact with the real world.
+
+## Over-Smoothing: A Practical Challenge
+
+Before diving into applications, an important practical issue: **over-smoothing**. As we stack more GNN layers, node embeddings converge to similar values.
+
+After $L$ layers, each node aggregates from its $L$-hop neighborhood. In densely connected graphs, all nodes eventually receive information from the same set of nodes, making their embeddings indistinguishable.
+
+$$
+\lim_{L \to \infty} \mathbf{h}_v^{(L)} \approx \mathbf{h}_u^{(L)} \quad \forall v, u \in V
+$$
+
+**Solutions:**
+- Use **few layers** (2-3 is typical for GNNs, unlike deep CNNs)
+- Add **skip connections** (residual connections)
+- Use **jumping knowledge** networks that aggregate across layers
+- Apply **dropout** on edges or features
+
+## Graph-Level Representations
+
+For many robotics applications, we need a **single representation for the entire graph**, not just individual nodes. This requires a **readout** (or pooling) function:
+
+**Mean pooling:**
+
+$$
+\mathbf{h}_G = \frac{1}{|V|} \sum_{v \in V} \mathbf{h}_v^{(L)}
+$$
+
+**Sum pooling:**
+
+$$
+\mathbf{h}_G = \sum_{v \in V} \mathbf{h}_v^{(L)}
+$$
+
+**Hierarchical pooling:** Learn to cluster and coarsen the graph progressively.
+
+Sum pooling preserves information about graph size (important when molecular size matters), while mean pooling is size-invariant.
+
+## Application 1: Scene Graph Understanding
+
+A **scene graph** represents a visual scene as a graph:
+- **Nodes:** Objects (cup, table, robot hand)
+- **Edges:** Spatial/semantic relations (on-top-of, next-to, inside)
+- **Node features:** Object type, position, size, color
+- **Edge features:** Relation type, distance
+
+GNNs process scene graphs to:
+- Predict object affordances (what can the robot do with this object?)
+- Reason about spatial relationships for planning
+- Ground language instructions to objects
+
+$$
+\mathbf{z}_{\text{cup}} = \text{GNN}(\mathbf{x}_{\text{cup}}, \{\mathbf{x}_{\text{table}}, \mathbf{x}_{\text{hand}}\}, \mathbf{A}_{\text{scene}})
+$$
+
+The cup's embedding captures not just its own properties but its relationships with the table and the robot hand.
+
+## Application 2: Manipulation Planning
+
+For robot manipulation, the arrangement of objects forms a graph where:
+- **Nodes** represent manipulable objects
+- **Edges** represent physical constraints (stacking, contact, proximity)
+
+A GNN can predict:
+- Which object to grasp next
+- Whether a configuration is stable
+- The effect of moving one object on others
+
+$$
+P(\text{grasp } v) = \text{softmax}\left(\text{MLP}(\mathbf{h}_v^{(L)})\right)
+$$
+
+This is particularly useful for **rearrangement tasks** where the order of operations matters.
+
+## Application 3: Multi-Robot Coordination
+
+In multi-robot systems:
+- **Nodes:** Individual robots
+- **Edges:** Communication links or proximity
+- **Node features:** Robot state (position, velocity, battery)
+- **Edge features:** Distance, communication quality
+
+GNNs enable decentralized control:
+
+$$
+\mathbf{a}_v = \pi(\mathbf{h}_v^{(L)})
+$$
+
+Each robot's action depends on its local GNN embedding, which incorporates information from neighboring robots through message passing. This naturally handles variable team sizes.
+
+## Application 4: Molecular Property Prediction
+
+From the lecture slides, a key application is predicting molecular properties:
+- **Nodes:** Atoms
+- **Edges:** Chemical bonds
+- **Task:** Predict whether a molecule is safe or toxic (graph-level classification)
+
+$$
+\hat{y} = \text{MLP}\left(\sum_{v \in V} \mathbf{h}_v^{(L)}\right)
+$$
+
+This binary cross-entropy loss for graph classification:
+
+$$
+\mathcal{L} = -\sum_{G} \left[y_G \log \hat{y}_G + (1 - y_G) \log(1 - \hat{y}_G)\right]
+$$
+
+## Application 5: Robot Kinematics
+
+A robot's kinematic chain is naturally a graph:
+- **Nodes:** Joints and links
+- **Edges:** Physical connections
+- **Node features:** Joint angle, torque, type (revolute/prismatic)
+
+GNNs can learn forward/inverse kinematics, making them applicable to different robot morphologies without retraining from scratch.
+
+## Unsupervised and Self-Supervised GNN Training
+
+Not all GNN applications require labeled data. Unsupervised objectives include:
+
+**Node-level:** Maximize agreement between embeddings of nearby nodes:
+
+$$
+\mathcal{L} = -\log\left(\sigma(\mathbf{z}_u^T \mathbf{z}_v)\right) - \sum_{v_n \in V_{\text{neg}}} \log\left(\sigma(-\mathbf{z}_u^T \mathbf{z}_{v_n})\right)
+$$
+
+**Graph-level:** Contrastive learning between different augmentations of the same graph.
+
+## Design Choices Summary
+
+When designing a GNN for a robotics application:
+
+| Choice | Options | Consideration |
+|--------|---------|---------------|
+| GNN type | GCN, GraphSAGE, GAT | GAT for heterogeneous importance; GraphSAGE for large graphs |
+| Number of layers | 2-4 | More layers = larger receptive field but risk over-smoothing |
+| Readout | Mean, sum, attention | Sum preserves size info; mean for size-invariant tasks |
+| Training | Supervised, self-supervised | Depends on label availability |
+
+## Worked Example: Scene Graph for Robot Task
+
+A robot sees a table with a red cup on it and a green block beside the cup.
+
+**Graph construction:**
+- Nodes: \{table, red\_cup, green\_block\} with features encoding type, color, position
+- Edges: (red_cup, table, "on"), (green_block, table, "on"), (red_cup, green_block, "beside")
+
+**After 2 GNN layers:** Each node embedding captures:
+- Its own properties
+- Properties of directly connected objects (layer 1)
+- Properties of 2-hop neighbors (layer 2)
+
+The red_cup embedding now "knows" it is on the table and beside the green block -- enabling the robot to plan actions like "pick up the cup that is beside the green block."
+
+## Key Takeaway
+
+> GNNs enable robots to reason about relational structure in scenes, multi-robot teams, and kinematic chains. Practical considerations include limiting depth to avoid over-smoothing and choosing appropriate readout functions for graph-level tasks. The inductive nature of GNNs allows generalization across different scenes and robot configurations.
+
+The **RELATIONAL REASONING UNIT** is now active. Your robot can understand how objects and entities relate to each other, enabling structured decision-making in complex environments.

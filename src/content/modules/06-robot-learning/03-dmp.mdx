@@ -1,0 +1,171 @@
+---
+title: "Dynamic Movement Primitives"
+lessonId: "robot-learning-03-dmp"
+moduleId: "06-robot-learning"
+order: 3
+xpReward: 225
+isBonus: true
+requiresParts: []
+journalEntry: "MOVEMENT PRIMITIVES LOADED. A spring-damper system shaped by learned forces -- smooth, adaptive, and goal-directed."
+---
+
+# Dynamic Movement Primitives
+
+**Dynamic Movement Primitives (DMPs)** provide a framework for learning and generating robot movements based on dynamical systems. Unlike GMM-based approaches that encode trajectories probabilistically, DMPs represent movements as **attractor dynamics** -- a spring-damper system modulated by a learned forcing function.
+
+## Motivation
+
+We want a movement representation that:
+- Can be learned from a single demonstration
+- Guarantees convergence to the goal
+- Allows easy adaptation (change goal position, change speed)
+- Is stable (no divergence or oscillation)
+- Can represent both discrete (point-to-point) and rhythmic movements
+
+## DMP Formulation
+
+A DMP consists of two components:
+
+### 1. Transformation System (Spring-Damper)
+
+A second-order dynamical system that provides the basic attractor behavior:
+
+$$
+\tau \ddot{y} = \alpha_y(\beta_y(g - y) - \dot{y}) + f(x)
+$$
+
+where:
+- $y$ is the position (output trajectory)
+- $g$ is the **goal position** (attractor point)
+- $\tau$ is the **time constant** (controls speed)
+- $\alpha_y, \beta_y$ are damping and stiffness constants
+- $f(x)$ is the **forcing function** (learned from demonstration)
+- $x$ is the **phase variable** (replaces time)
+
+Setting $\beta_y = \alpha_y / 4$ makes the system **critically damped** -- it converges to $g$ smoothly without oscillation.
+
+### 2. Canonical System (Phase Variable)
+
+Instead of depending directly on time, DMPs use a **phase variable** $x$ that decays from 1 to 0:
+
+$$
+\tau \dot{x} = -\alpha_x x
+$$
+
+$$
+x(0) = 1, \quad x(T) \approx 0
+$$
+
+Using $x$ instead of $t$ enables **temporal scaling** -- changing $\tau$ speeds up or slows down the movement without changing its shape.
+
+### 3. Forcing Function (Shape Attractor)
+
+The forcing function $f(x)$ encodes the shape of the learned movement:
+
+$$
+f(x) = \frac{\sum_{i=1}^{N} \psi_i(x) w_i}{\sum_{i=1}^{N} \psi_i(x)} x (g - y_0)
+$$
+
+where:
+- $\psi_i(x) = \exp\left(-h_i(x - c_i)^2\right)$ are Gaussian **basis functions** centered at $c_i$ with width $h_i$
+- $w_i$ are the **learnable weights**
+- $x(g - y_0)$ ensures the forcing function vanishes as $x \to 0$ and scales with the goal offset
+
+The crucial property: as $x \to 0$ (end of movement), $f(x) \to 0$, and the system is governed purely by the spring-damper, **guaranteeing convergence** to the goal $g$.
+
+## Learning DMP Weights
+
+Given a demonstrated trajectory $y_{\text{demo}}(t)$, we compute the desired forcing function:
+
+$$
+f_{\text{target}}(t) = \tau \ddot{y}_{\text{demo}} - \alpha_y(\beta_y(g - y_{\text{demo}}) - \dot{y}_{\text{demo}})
+$$
+
+Then learn weights $w_i$ using **weighted linear regression**:
+
+$$
+w_i = \frac{\mathbf{s}^T \boldsymbol{\Gamma}_i \mathbf{f}_{\text{target}}}{\mathbf{s}^T \boldsymbol{\Gamma}_i \mathbf{s}}
+$$
+
+where $\mathbf{s} = x(g - y_0)$ and $\boldsymbol{\Gamma}_i = \text{diag}(\psi_i(x_1), \ldots, \psi_i(x_T))$.
+
+This is a one-shot learning process -- a single demonstration is sufficient.
+
+## Goal Adaptation
+
+One of DMP's most powerful features: **changing the goal** without re-learning.
+
+Simply set a new $g'$ and the DMP automatically adapts:
+- The spring-damper attracts to $g'$ instead of $g$
+- The forcing function scales via the $(g - y_0)$ term
+- The movement shape is preserved but redirected
+
+$$
+f(x) = \frac{\sum_{i} \psi_i w_i}{\sum_{i} \psi_i} x (g' - y_0)
+$$
+
+## Temporal Scaling
+
+Changing $\tau$ scales the movement in time:
+- Larger $\tau$: slower movement
+- Smaller $\tau$: faster movement
+
+The shape of the trajectory is preserved because the phase variable $x$ evolves proportionally.
+
+## Point-to-Point vs Rhythmic Movements
+
+### Point-to-Point (Discrete) DMPs
+- Phase variable $x$ decays from 1 to 0
+- Movement starts at $y_0$ and converges to $g$
+- Used for: reaching, grasping, placing
+
+### Rhythmic DMPs
+- Phase variable is periodic: $\dot{\phi} = \Omega$ (constant frequency)
+- Basis functions are defined on the phase $\phi \in [0, 2\pi)$
+- Used for: walking, drumming, stirring
+
+$$
+f(\phi) = \frac{\sum_{i=1}^{N} \psi_i(\phi) w_i}{\sum_{i=1}^{N} \psi_i(\phi)}
+$$
+
+## Multi-Dimensional DMPs
+
+For a robot with $D$ degrees of freedom, we use **one DMP per dimension**, all sharing the same canonical system (phase variable $x$):
+
+$$
+\tau \ddot{y}_d = \alpha_y(\beta_y(g_d - y_d) - \dot{y}_d) + f_d(x) \quad \text{for } d = 1, \ldots, D
+$$
+
+This ensures all dimensions are synchronized through the shared phase.
+
+## Worked Example: DMP Goal Adaptation
+
+A DMP learned to reach from $y_0 = 0$ to $g = 1$ with a curved trajectory (due to learned $f(x)$).
+
+**Original goal** $g = 1$:
+- At $t = 0$: $x = 1$, forcing function active, trajectory follows learned shape
+- At $t = T$: $x \approx 0$, $f(x) \approx 0$, system converges to $g = 1$
+
+**New goal** $g' = 2$:
+- The scaling factor $(g' - y_0) / (g - y_0) = 2/1 = 2$
+- The forcing function is scaled by 2, producing a proportionally larger curve
+- The trajectory converges to $g' = 2$ with the same shape, just scaled
+
+**New goal** $g' = -0.5$:
+- The scaling factor is $-0.5$
+- The trajectory is flipped and scaled, converging to $g' = -0.5$
+
+## Limitations of DMPs
+
+| Limitation | Description |
+|-----------|-------------|
+| Single demonstration | Learns from one demo -- no variability encoding |
+| No task parameterization | Cannot directly generalize across different task parameters |
+| Fixed structure | Number of basis functions must be chosen a priori |
+| No uncertainty | Does not provide confidence estimates |
+
+These limitations motivate the neural network-based approaches (CNMP, ACNMP) covered in the next lessons.
+
+## Key Takeaway
+
+> DMPs represent movements as a spring-damper system modulated by a learned forcing function. The phase variable enables temporal scaling, and the multiplicative goal term enables goal adaptation while preserving movement shape. The forcing function vanishes at the end, guaranteeing convergence to the goal. DMPs provide a simple, stable, and adaptable framework for encoding robot movements from a single demonstration.

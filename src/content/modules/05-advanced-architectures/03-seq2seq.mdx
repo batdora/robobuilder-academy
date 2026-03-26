@@ -1,0 +1,132 @@
+---
+title: "Sequence-to-Sequence Models"
+lessonId: "advanced-arch-03-seq2seq"
+moduleId: "05-advanced-architectures"
+order: 3
+xpReward: 175
+isBonus: true
+requiresParts: []
+journalEntry: "ENCODER-DECODER PATHWAY ESTABLISHED. Translating from one representation to another."
+---
+
+# Sequence-to-Sequence Models
+
+Many tasks require mapping an **input sequence** to an **output sequence** of potentially different length: machine translation, speech recognition, robot command interpretation. **Sequence-to-Sequence (Seq2Seq)** models, introduced by Sutskever et al. (2014), solve this with an **encoder-decoder** architecture.
+
+## The Encoder-Decoder Architecture
+
+A Seq2Seq model consists of two RNNs (typically LSTMs or GRUs):
+
+**Encoder:** Reads the input sequence $\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_T$ and compresses it into a fixed-length **context vector** $\mathbf{c}$:
+
+$$
+\mathbf{h}_t^{\text{enc}} = \text{LSTM}_{\text{enc}}(\mathbf{x}_t, \mathbf{h}_{t-1}^{\text{enc}})
+$$
+
+$$
+\mathbf{c} = \mathbf{h}_T^{\text{enc}}
+$$
+
+The context vector $\mathbf{c}$ is the final hidden state of the encoder -- it must contain all the information about the input sequence.
+
+**Decoder:** Generates the output sequence $\mathbf{y}_1, \mathbf{y}_2, \ldots, \mathbf{y}_{T'}$ one token at a time, conditioned on $\mathbf{c}$:
+
+$$
+\mathbf{h}_t^{\text{dec}} = \text{LSTM}_{\text{dec}}(\mathbf{y}_{t-1}, \mathbf{h}_{t-1}^{\text{dec}})
+$$
+
+$$
+P(\mathbf{y}_t | \mathbf{y}_{<t}, \mathbf{x}) = \text{softmax}(\mathbf{W}_o \mathbf{h}_t^{\text{dec}})
+$$
+
+The decoder is initialized with $\mathbf{h}_0^{\text{dec}} = \mathbf{c}$.
+
+## Conditional Generation
+
+The model learns to maximize the **conditional probability** of the target sequence given the input:
+
+$$
+P(\mathbf{y}_1, \ldots, \mathbf{y}_{T'} | \mathbf{x}_1, \ldots, \mathbf{x}_T) = \prod_{t=1}^{T'} P(\mathbf{y}_t | \mathbf{y}_{<t}, \mathbf{c})
+$$
+
+The training objective is to maximize the log-likelihood:
+
+$$
+\mathcal{L} = \sum_{t=1}^{T'} \log P(\mathbf{y}_t | \mathbf{y}_{<t}, \mathbf{c})
+$$
+
+## Teacher Forcing
+
+During training, should the decoder use its own predictions or the ground-truth tokens as input?
+
+**Without teacher forcing:** At step $t$, the decoder receives its own prediction $\hat{\mathbf{y}}_{t-1}$. Errors accumulate -- a wrong prediction at step 3 corrupts all subsequent steps.
+
+**With teacher forcing:** At step $t$, the decoder receives the **ground-truth** $\mathbf{y}_{t-1}$ regardless of what it predicted. This provides a stable training signal and speeds up convergence.
+
+$$
+\mathbf{h}_t^{\text{dec}} = \text{LSTM}_{\text{dec}}(\mathbf{y}_{t-1}^{\text{true}}, \mathbf{h}_{t-1}^{\text{dec}}) \quad \text{(teacher forcing)}
+$$
+
+**Caveat:** Teacher forcing creates a train-test mismatch -- during inference, the model must use its own predictions. A common mitigation is **scheduled sampling**, which gradually transitions from teacher forcing to self-generated inputs during training.
+
+## Decoding Strategies
+
+At inference time, we need to generate the output sequence. Several strategies exist:
+
+### Greedy Decoding
+
+At each step, pick the most probable token:
+
+$$
+\hat{y}_t = \arg\max_{y} P(y | \mathbf{y}_{<t}, \mathbf{c})
+$$
+
+Fast but suboptimal -- a locally good choice may lead to a globally bad sequence.
+
+### Beam Search
+
+Maintain the top-$k$ (beam width) partial sequences at each step. For beam width $B$:
+
+1. Start with $B$ hypotheses
+2. At each step, expand each hypothesis by all possible tokens
+3. Keep the top-$B$ hypotheses by total log-probability
+4. Stop when all beams produce the end-of-sequence token
+
+$$
+\text{score}(\mathbf{y}_{1:t}) = \sum_{i=1}^{t} \log P(\mathbf{y}_i | \mathbf{y}_{<i}, \mathbf{c})
+$$
+
+Beam search with $B = 5\text{--}10$ typically yields much better results than greedy decoding.
+
+## The Information Bottleneck Problem
+
+The encoder must compress the **entire** input sequence into a single fixed-length vector $\mathbf{c}$. This creates a bottleneck:
+
+- Short sequences: $\mathbf{c}$ can capture all information
+- Long sequences: Information is lost, and performance degrades
+
+This is the key limitation that motivates the **attention mechanism** (next lesson).
+
+## Worked Example: Translation Pipeline
+
+Consider translating "the robot moves" to a target language:
+
+1. **Encoder processes** "the" $\to$ $\mathbf{h}_1$, "robot" $\to$ $\mathbf{h}_2$, "moves" $\to$ $\mathbf{h}_3$
+2. **Context vector:** $\mathbf{c} = \mathbf{h}_3$ (final encoder state)
+3. **Decoder step 1:** Input = start token, hidden = $\mathbf{c}$ $\to$ predicts $y_1$
+4. **Decoder step 2:** Input = $y_1$, hidden = $\mathbf{h}_1^{\text{dec}}$ $\to$ predicts $y_2$
+5. **Decoder step 3:** Predicts end-of-sequence token $\to$ stop
+
+With teacher forcing during training, step 2 would use the true $y_1$ instead of the predicted one.
+
+## Applications in Robotics
+
+Seq2Seq models are used in robotics for:
+
+- **Natural language to robot action:** Translating human instructions into action sequences
+- **Trajectory prediction:** Encoding past trajectory, decoding future trajectory
+- **Sensor fusion:** Encoding multimodal sensor streams into action commands
+
+## Key Takeaway
+
+> Seq2Seq models use an encoder to compress input sequences into a context vector and a decoder to generate output sequences. Teacher forcing stabilizes training, and beam search improves generation quality. The fixed-length bottleneck limits performance on long sequences, motivating the attention mechanism.

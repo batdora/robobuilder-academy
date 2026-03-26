@@ -1,0 +1,180 @@
+---
+title: "Message Passing and GNN Architectures"
+lessonId: "advanced-arch-08-message-passing-gnns"
+moduleId: "05-advanced-architectures"
+order: 8
+xpReward: 225
+isBonus: true
+requiresParts: []
+journalEntry: "AGGREGATION CIRCUITS ONLINE. Learning by listening to neighbors -- each layer expands my understanding."
+---
+
+# Message Passing and GNN Architectures
+
+How do GNNs actually compute node embeddings? The answer is the **message passing** framework: nodes iteratively update their representations by aggregating information from their neighbors.
+
+## The Message Passing Framework
+
+At each layer $l$, every node $v$:
+
+**Step 1: AGGREGATE** -- Collect messages from neighbors:
+
+$$
+\mathbf{m}_{\mathcal{N}(v)}^{(l)} = \text{AGGREGATE}^{(l)}\left(\left\{\mathbf{h}_u^{(l-1)} : u \in \mathcal{N}(v)\right\}\right)
+$$
+
+**Step 2: UPDATE** -- Combine with own representation:
+
+$$
+\mathbf{h}_v^{(l)} = \text{UPDATE}^{(l)}\left(\mathbf{h}_v^{(l-1)}, \mathbf{m}_{\mathcal{N}(v)}^{(l)}\right)
+$$
+
+The initial representations are the node features: $\mathbf{h}_v^{(0)} = \mathbf{x}_v$.
+
+After $L$ layers, each node's embedding $\mathbf{h}_v^{(L)}$ captures information from its **$L$-hop neighborhood** -- all nodes reachable within $L$ steps.
+
+## Computation Graph
+
+For node $v$ at layer $l$, the **computation graph** is a tree rooted at $v$:
+
+- Layer 0: Node $v$'s own features
+- Layer 1: Features from $v$'s direct neighbors $\mathcal{N}(v)$
+- Layer 2: Features from neighbors-of-neighbors
+
+This tree structure means the **same aggregation parameters are shared for all nodes**. The number of model parameters is sublinear in the number of nodes $|V|$, and we can generalize to **unseen nodes** and even **entirely new graphs**.
+
+## Graph Convolutional Network (GCN)
+
+**GCN** (Kipf and Welling, 2017) uses a simple mean aggregation with a spectral motivation:
+
+$$
+\mathbf{h}_v^{(l)} = \sigma\left(\mathbf{W}^{(l)} \cdot \text{MEAN}\left(\left\{\mathbf{h}_u^{(l-1)} : u \in \mathcal{N}(v) \cup \{v\}\right\}\right)\right)
+$$
+
+In matrix form (for all nodes simultaneously):
+
+$$
+\mathbf{H}^{(l)} = \sigma\left(\tilde{\mathbf{D}}^{-1/2} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-1/2} \mathbf{H}^{(l-1)} \mathbf{W}^{(l)}\right)
+$$
+
+where:
+- $\tilde{\mathbf{A}} = \mathbf{A} + \mathbf{I}$ (adjacency with self-loops)
+- $\tilde{\mathbf{D}}$ is the degree matrix of $\tilde{\mathbf{A}}$
+- $\tilde{\mathbf{D}}^{-1/2} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-1/2}$ is the **symmetric normalization**
+
+The normalization by $\tilde{\mathbf{D}}$ prevents nodes with many neighbors from having disproportionately large values.
+
+### GCN Properties
+- **Mean aggregation:** Takes the average of neighbor features
+- **Symmetric normalization:** Normalizes by both source and target degree
+- **Self-loops:** Includes the node's own features in the aggregation
+
+## GraphSAGE
+
+**GraphSAGE** (Hamilton et al., 2017) introduced **sampling** and multiple **aggregator functions**:
+
+$$
+\mathbf{h}_{\mathcal{N}(v)}^{(l)} = \text{AGGREGATE}^{(l)}\left(\left\{\mathbf{h}_u^{(l-1)} : u \in \mathcal{N}_s(v)\right\}\right)
+$$
+
+$$
+\mathbf{h}_v^{(l)} = \sigma\left(\mathbf{W}^{(l)} \cdot \text{CONCAT}\left(\mathbf{h}_v^{(l-1)}, \mathbf{h}_{\mathcal{N}(v)}^{(l)}\right)\right)
+$$
+
+Key differences from GCN:
+- **Sampling:** Uses a fixed-size sample $\mathcal{N}_s(v)$ of neighbors (not all neighbors), enabling mini-batch training on large graphs
+- **Concatenation:** Concatenates the node's own representation with the aggregated neighbor representation (instead of averaging them together)
+- **Multiple aggregators:** Supports mean, LSTM, and max-pooling aggregation
+
+### GraphSAGE Aggregators
+
+**Mean aggregator:**
+
+$$
+\mathbf{h}_{\mathcal{N}(v)}^{(l)} = \text{MEAN}\left(\left\{\mathbf{h}_u^{(l-1)} : u \in \mathcal{N}_s(v)\right\}\right)
+$$
+
+**Max-pool aggregator:**
+
+$$
+\mathbf{h}_{\mathcal{N}(v)}^{(l)} = \max\left(\left\{\sigma\left(\mathbf{W}_{\text{pool}} \mathbf{h}_u^{(l-1)} + \mathbf{b}\right) : u \in \mathcal{N}_s(v)\right\}\right)
+$$
+
+## Graph Attention Network (GAT)
+
+**GAT** (Velickovic et al., 2018) applies **attention** to graphs -- not all neighbors are equally important:
+
+**Step 1: Compute attention coefficients:**
+
+$$
+e_{vu} = \text{LeakyReLU}\left(\mathbf{a}^T [\mathbf{W}\mathbf{h}_v \| \mathbf{W}\mathbf{h}_u]\right)
+$$
+
+where $\|$ denotes concatenation and $\mathbf{a}$ is a learned attention vector.
+
+**Step 2: Normalize with softmax over neighbors:**
+
+$$
+\alpha_{vu} = \frac{\exp(e_{vu})}{\sum_{k \in \mathcal{N}(v)} \exp(e_{vk})}
+$$
+
+**Step 3: Weighted aggregation:**
+
+$$
+\mathbf{h}_v^{(l)} = \sigma\left(\sum_{u \in \mathcal{N}(v)} \alpha_{vu} \mathbf{W}\mathbf{h}_u^{(l-1)}\right)
+$$
+
+GAT also uses **multi-head attention** (analogous to Transformers):
+
+$$
+\mathbf{h}_v^{(l)} = \Big\|_{k=1}^{K} \sigma\left(\sum_{u \in \mathcal{N}(v)} \alpha_{vu}^{(k)} \mathbf{W}^{(k)}\mathbf{h}_u^{(l-1)}\right)
+$$
+
+where $\|$ denotes concatenation of $K$ attention heads.
+
+## Comparison of GNN Architectures
+
+| Feature | GCN | GraphSAGE | GAT |
+|---------|-----|-----------|-----|
+| Aggregation | Mean (fixed) | Configurable | Attention-weighted |
+| Neighbor weighting | Degree-based | Equal | Learned |
+| Scalability | Full graph | Sampling | Full or sampling |
+| Self-inclusion | Via self-loops | Via concatenation | Via self-attention |
+| Key innovation | Spectral convolution | Inductive learning | Graph attention |
+
+## Supervised Training of GNNs
+
+For **node classification**, we train with cross-entropy loss:
+
+$$
+\mathcal{L} = -\sum_{v \in V_{\text{train}}} \left[ y_v \log(\sigma(\mathbf{z}_v^T \boldsymbol{\theta})) + (1 - y_v) \log(1 - \sigma(\mathbf{z}_v^T \boldsymbol{\theta})) \right]
+$$
+
+where $\mathbf{z}_v$ is the node embedding (encoder output) and $\boldsymbol{\theta}$ are classification weights.
+
+## Inductive Capability
+
+Because GNN parameters (the weight matrices $\mathbf{W}^{(l)}$) are **shared across all nodes**, GNNs have a powerful **inductive** capability:
+
+- Generate embeddings for **nodes never seen during training**
+- Generalize to **entirely new graphs** (e.g., train on protein interaction graph from organism A, apply to organism B)
+
+This is fundamentally different from transductive methods like node2vec that learn fixed embeddings for specific nodes.
+
+## Worked Example: One GCN Layer
+
+Given a 3-node graph (triangle) with features $\mathbf{x}_1 = [1, 0]$, $\mathbf{x}_2 = [0, 1]$, $\mathbf{x}_3 = [1, 1]$ and $\mathbf{W} = \mathbf{I}$ (identity, for simplicity):
+
+For node 1 with $\mathcal{N}(1) \cup \{1\} = \{1, 2, 3\}$:
+
+$$
+\mathbf{h}_1^{(1)} = \sigma\left(\frac{1}{3}\left([1,0] + [0,1] + [1,1]\right)\right) = \sigma\left([0.67, 0.67]\right)
+$$
+
+After ReLU: $\mathbf{h}_1^{(1)} = [0.67, 0.67]$.
+
+Node 1's embedding now contains averaged information from all three nodes in the triangle.
+
+## Key Takeaway
+
+> Message passing GNNs compute node embeddings by iteratively aggregating neighbor information. GCN uses mean aggregation with symmetric normalization, GraphSAGE adds neighbor sampling and concatenation for scalability, and GAT uses learned attention weights for adaptive neighbor importance. All share parameters across nodes, enabling inductive generalization to unseen nodes and graphs.

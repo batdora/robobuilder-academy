@@ -1,0 +1,104 @@
+---
+title: "Introduction to Neural Networks"
+lessonId: "foundations-02-what-is-nn"
+moduleId: "01-foundations"
+order: 2
+xpReward: 150
+robotPart: "BRAIN"
+requiresParts: ["CHASSIS"]
+journalEntry: "BRAIN MODULE INSTALLED. Processing capacity: online. Thoughts: none yet. Ready to learn."
+---
+
+# Introduction to Neural Networks
+
+A neural network is a computational model inspired by biological neurons. It is the foundation of how robots learn from data.
+
+## Biological vs Artificial Neurons
+
+A biological neuron receives signals through **dendrites**, processes them in the **cell body**, and fires an output through the **axon** if the combined signal exceeds a threshold.
+
+An artificial neuron does the same thing with math:
+
+$$
+y = \sigma(\mathbf{w}^T \mathbf{x} + b)
+$$
+
+where:
+- $\mathbf{x}$ is the input vector
+- $\mathbf{w}$ is the weight vector
+- $b$ is the bias term
+- $\sigma$ is the activation function
+
+## The Perceptron
+
+The **perceptron** is the simplest neural network — a single neuron. It computes a weighted sum of inputs and applies a step function:
+
+$$
+\hat{y} = \begin{cases} 1 & \text{if } \mathbf{w}^T \mathbf{x} + b \geq 0 \\ 0 & \text{otherwise} \end{cases}
+$$
+
+A single perceptron can only learn **linearly separable** functions (AND, OR) but not XOR — this limitation motivated multi-layer networks.
+
+## Activation Functions
+
+Activation functions introduce **nonlinearity**, allowing networks to learn complex patterns.
+
+**Sigmoid:**
+
+$$
+\sigma(z) = \frac{1}{1 + e^{-z}}
+$$
+
+Output range: $(0, 1)$. Useful for probabilities. Suffers from **vanishing gradients** for large $|z|$.
+
+**ReLU (Rectified Linear Unit):**
+
+$$
+\text{ReLU}(z) = \max(0, z)
+$$
+
+Most popular in modern networks. Simple, fast, avoids vanishing gradients (but can cause **dead neurons**).
+
+**Tanh:**
+
+$$
+\tanh(z) = \frac{e^z - e^{-z}}{e^z + e^{-z}}
+$$
+
+Output range: $(-1, 1)$. Zero-centered, which can help training.
+
+## Multi-Layer Perceptron (MLP)
+
+An MLP stacks multiple layers of neurons:
+
+- **Input layer** — receives raw data
+- **Hidden layers** — learn intermediate representations
+- **Output layer** — produces the final prediction
+
+Each layer computes:
+
+$$
+\mathbf{h}^{(l)} = \sigma\left(\mathbf{W}^{(l)} \mathbf{h}^{(l-1)} + \mathbf{b}^{(l)}\right)
+$$
+
+## Forward Propagation
+
+Data flows from input to output through successive layer transformations. For a 2-layer network:
+
+$$
+\hat{y} = \sigma_2\left(\mathbf{W}_2 \cdot \sigma_1\left(\mathbf{W}_1 \mathbf{x} + \mathbf{b}_1\right) + \mathbf{b}_2\right)
+$$
+
+This is called **forward propagation** — no learning happens here, only inference.
+
+## Universal Approximation Theorem
+
+A feedforward network with a single hidden layer containing a finite number of neurons can approximate any continuous function on a compact subset of $\mathbb{R}^n$, given sufficient width.
+
+This means neural networks are **universal function approximators** — the challenge is finding the right weights.
+
+## Key Takeaway
+
+> A neural network learns by adjusting weights to minimize error. Depth gives it the power to represent complex functions.
+
+The **BRAIN** is installed. Your robot can now process information, but it still needs to learn how to see and optimize.

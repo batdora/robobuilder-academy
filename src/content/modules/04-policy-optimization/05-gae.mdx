@@ -1,0 +1,249 @@
+---
+title: "Generalized Advantage Estimation"
+lessonId: "pg-05-gae"
+moduleId: "04-policy-optimization"
+order: 5
+xpReward: 250
+requiresParts: ["MOTOR_CORTEX"]
+---
+
+# Generalized Advantage Estimation (GAE)
+
+In the previous lesson, we saw that advantage estimation involves a bias-variance tradeoff: short bootstraps have low variance but high bias, while long rollouts have high variance but low bias. **GAE** (Schulman et al., ICLR 2016) provides an elegant way to interpolate between these extremes using a single parameter $\lambda$.
+
+## Recap: The $n$-step Advantage Estimates
+
+We can estimate $Q^{\pi,\gamma}(s, u)$ using different numbers of actual rewards before bootstrapping with $V^\pi$:
+
+$$
+\hat{Q}_t^{(1)} = r_t + \gamma V^\pi(s_{t+1})
+$$
+
+$$
+\hat{Q}_t^{(2)} = r_t + \gamma r_{t+1} + \gamma^2 V^\pi(s_{t+2})
+$$
+
+$$
+\hat{Q}_t^{(3)} = r_t + \gamma r_{t+1} + \gamma^2 r_{t+2} + \gamma^3 V^\pi(s_{t+3})
+$$
+
+$$
+\hat{Q}_t^{(k)} = \sum_{l=0}^{k-1} \gamma^l r_{t+l} + \gamma^k V^\pi(s_{t+k})
+$$
+
+$$
+\hat{Q}_t^{(\infty)} = \sum_{l=0}^{\infty} \gamma^l r_{t+l} \quad \text{(full Monte Carlo)}
+$$
+
+The corresponding advantage estimates are $\hat{A}_t^{(k)} = \hat{Q}_t^{(k)} - V^\pi(s_t)$.
+
+## The TD Residual
+
+Define the **TD residual** (1-step advantage estimate):
+
+$$
+\delta_t^V = r_t + \gamma V(s_{t+1}) - V(s_t)
+$$
+
+Note that the $k$-step advantage can be written as a sum of TD residuals:
+
+$$
+\hat{A}_t^{(1)} = \delta_t^V
+$$
+
+$$
+\hat{A}_t^{(2)} = \delta_t^V + \gamma \delta_{t+1}^V
+$$
+
+$$
+\hat{A}_t^{(k)} = \sum_{l=0}^{k-1} \gamma^l \delta_{t+l}^V
+$$
+
+This is a useful reformulation because it expresses all $n$-step advantages in terms of TD residuals.
+
+## The GAE Formula
+
+**GAE($\gamma$, $\lambda$)** computes a weighted average of all $n$-step advantage estimates:
+
+$$
+\hat{A}_t^{\text{GAE}(\gamma, \lambda)} = (1-\lambda)\left(\hat{A}_t^{(1)} + \lambda \hat{A}_t^{(2)} + \lambda^2 \hat{A}_t^{(3)} + \cdots\right)
+$$
+
+The weights are $(1-\lambda)\lambda^{k-1}$ for the $k$-step estimate, which form a geometric distribution that sums to 1.
+
+Using the TD residual formulation, this simplifies beautifully:
+
+$$
+\hat{A}_t^{\text{GAE}(\gamma, \lambda)} = \sum_{l=0}^{\infty} (\gamma \lambda)^l \delta_{t+l}^V
+$$
+
+**This is the key formula.** GAE is simply an exponentially-weighted sum of TD residuals.
+
+### Derivation
+
+Starting from the weighted average:
+
+$$
+\hat{A}_t^{\text{GAE}} = (1-\lambda)\sum_{k=1}^{\infty} \lambda^{k-1} \hat{A}_t^{(k)}
+$$
+
+$$
+= (1-\lambda)\sum_{k=1}^{\infty} \lambda^{k-1} \sum_{l=0}^{k-1}\gamma^l \delta_{t+l}
+$$
+
+Swapping the order of summation (collecting terms for each $\delta_{t+l}$):
+
+For $\delta_{t+l}$, it appears in all $\hat{A}_t^{(k)}$ where $k \geq l+1$, with coefficient $\gamma^l$:
+
+$$
+= (1-\lambda)\sum_{l=0}^{\infty}\gamma^l \delta_{t+l} \sum_{k=l+1}^{\infty} \lambda^{k-1}
+$$
+
+$$
+= (1-\lambda)\sum_{l=0}^{\infty}\gamma^l \delta_{t+l} \cdot \frac{\lambda^l}{1-\lambda}
+$$
+
+$$
+= \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}
+$$
+
+## Interpreting the $\lambda$ Parameter
+
+$\lambda \in [0, 1]$ controls the bias-variance tradeoff:
+
+### $\lambda = 0$: Pure TD (1-step)
+
+$$
+\hat{A}_t^{\text{GAE}(\gamma, 0)} = \delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)
+$$
+
+- **Low variance** (uses only one reward sample)
+- **High bias** (if $V$ is inaccurate)
+
+### $\lambda = 1$: Pure Monte Carlo
+
+$$
+\hat{A}_t^{\text{GAE}(\gamma, 1)} = \sum_{l=0}^{\infty}\gamma^l \delta_{t+l} = \sum_{l=0}^{\infty}\gamma^l r_{t+l} - V(s_t)
+$$
+
+- **High variance** (sums many stochastic rewards)
+- **Low bias** (does not rely on $V$ for future estimates)
+
+### Intermediate $\lambda$: Best of Both Worlds
+
+In practice, $\lambda \in [0.9, 0.99]$ works well. This gives more weight to short-term TD estimates (lower variance) while still incorporating longer-term information.
+
+| $\lambda$ | Behavior | Bias | Variance |
+|----------|----------|------|----------|
+| 0 | 1-step TD | High | Low |
+| 0.5 | Mix | Medium | Medium |
+| 0.9 | Mostly MC | Low-Medium | Medium-High |
+| 0.95 | Standard choice | Low | Medium |
+| 1.0 | Full MC | None (with exact V) | High |
+
+## Connection to TD($\lambda$) and Eligibility Traces
+
+GAE is closely related to **TD($\lambda$)** (Sutton and Barto, 1990):
+
+- TD($\lambda$) for value estimation: $V(s_t) \leftarrow V(s_t) + \alpha \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}$
+- GAE for advantage estimation: $\hat{A}_t = \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}$
+
+Both use the same exponentially-weighted sum of TD errors. TD($\lambda$) uses it to update the value function; GAE uses it as the advantage estimate in the policy gradient.
+
+The connection to **eligibility traces** is also direct: GAE can be implemented efficiently using eligibility traces, computing the advantage in a backward pass through the trajectory.
+
+## Practical Computation of GAE
+
+In practice, trajectories have finite length $T$. GAE is computed with a backward pass:
+
+> **Computing GAE in Practice:**
+>
+> Given trajectory $(s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_{T-1}, a_{T-1}, r_{T-1}, s_T)$
+>
+> 1. Set $\hat{A}_T = 0$
+> 2. **for** $t = T-1, T-2, \ldots, 0$ **do**
+>    - $\delta_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t)$
+>    - $\hat{A}_t = \delta_t + \gamma \lambda \hat{A}_{t+1}$
+> 3. **end for**
+
+This recursive formula directly follows from:
+
+$$
+\hat{A}_t = \delta_t + \gamma\lambda\hat{A}_{t+1}
+$$
+
+which is just unrolling $\hat{A}_t = \sum_{l=0}^{T-t-1}(\gamma\lambda)^l\delta_{t+l}$.
+
+## GAE in the Policy Gradient Algorithm
+
+The complete algorithm using GAE:
+
+> **Policy Gradient + GAE:**
+>
+> 1. Initialize $\pi_{\theta_0}$, $V_{\phi_0}^\pi$
+> 2. Collect rollouts $\{s, u, s', r\}$ and compute $\hat{Q}_i(s, u)$ using GAE
+> 3. Update critic:
+>    $\phi_{i+1} \leftarrow \min_\phi \sum_{(s,u,s',r)} \|\hat{Q}_i(s, u) - V_\phi^\pi(s)\|_2^2 + \kappa \|\phi - \phi_i\|_2^2$
+> 4. Update actor:
+>    $\theta_{i+1} \leftarrow \theta_i + \alpha \frac{1}{m}\sum_{k=1}^{m}\sum_{t=0}^{H-1}\nabla_\theta \log \pi_{\theta_i}(u_t^{(k)}|s_t^{(k)})\left(\hat{Q}_i(s_t^{(k)}, u_t^{(k)}) - V_{\phi_i}^\pi(s_t^{(k)})\right)$
+
+Note the regularization $\kappa\|\phi - \phi_i\|_2^2$ in the critic update, which prevents the value function from changing too drastically between iterations (an early form of trust region for the critic).
+
+## Effect of $\gamma$ and $\lambda$
+
+Experimental results from Schulman et al. show:
+
+- **Without value function baseline:** Performance degrades significantly (the "No VF" curve)
+- **$\lambda$ too small (e.g., 0, 0.3):** Slow learning due to high bias in advantage estimates
+- **$\lambda$ too large ($= 1.0$):** Noisier learning, sometimes instability
+- **Sweet spot:** $\lambda \in [0.92, 0.99]$ combined with $\gamma \in [0.98, 0.995]$
+
+The interaction between $\gamma$ and $\lambda$ is important: both contribute to discounting future information. High $\gamma$ with moderate $\lambda$ often works best.
+
+## Worked Example: Computing GAE
+
+**Setup:** $\gamma = 0.99$, $\lambda = 0.95$. Trajectory of length 3:
+
+| $t$ | $s_t$ | $r_t$ | $V(s_t)$ |
+|-----|--------|--------|-----------|
+| 0 | $s_0$ | 1 | 5.0 |
+| 1 | $s_1$ | 2 | 6.0 |
+| 2 | $s_2$ | 3 | 7.0 |
+| 3 | $s_3$ (terminal) | - | 0.0 |
+
+**Step 1: Compute TD residuals**
+
+$$
+\delta_0 = r_0 + \gamma V(s_1) - V(s_0) = 1 + 0.99 \times 6.0 - 5.0 = 1 + 5.94 - 5.0 = 1.94
+$$
+
+$$
+\delta_1 = r_1 + \gamma V(s_2) - V(s_1) = 2 + 0.99 \times 7.0 - 6.0 = 2 + 6.93 - 6.0 = 2.93
+$$
+
+$$
+\delta_2 = r_2 + \gamma V(s_3) - V(s_2) = 3 + 0.99 \times 0.0 - 7.0 = 3 - 7.0 = -4.0
+$$
+
+**Step 2: Compute GAE (backward pass)**
+
+$$
+\hat{A}_2 = \delta_2 = -4.0
+$$
+
+$$
+\hat{A}_1 = \delta_1 + \gamma\lambda\hat{A}_2 = 2.93 + 0.99 \times 0.95 \times (-4.0) = 2.93 - 3.762 = -0.832
+$$
+
+$$
+\hat{A}_0 = \delta_0 + \gamma\lambda\hat{A}_1 = 1.94 + 0.99 \times 0.95 \times (-0.832) = 1.94 - 0.782 = 1.158
+$$
+
+**Interpretation:**
+- At $t=0$: Positive advantage ($1.158$) -- the trajectory started better than expected
+- At $t=1$: Slightly negative ($-0.832$) -- mixed signal
+- At $t=2$: Very negative ($-4.0$) -- the final reward of 3 was much less than $V(s_2) = 7.0$
+
+## Key Takeaway
+
+> **GAE($\gamma$, $\lambda$)** provides a principled way to balance bias and variance in advantage estimation through the formula $\hat{A}_t = \sum_{l=0}^{\infty}(\gamma\lambda)^l\delta_{t+l}$. Setting $\lambda = 0$ gives the 1-step TD estimate (low variance, high bias), while $\lambda = 1$ gives the full MC return (high variance, no bias from bootstrapping). In practice, $\lambda \approx 0.95$ works well. GAE is used in virtually all modern policy gradient algorithms, including TRPO and PPO.

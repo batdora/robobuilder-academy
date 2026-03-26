@@ -1,0 +1,206 @@
+---
+title: "Robot Learning Summary"
+lessonId: "robot-learning-06-summary"
+moduleId: "06-robot-learning"
+order: 6
+xpReward: 150
+isBonus: true
+requiresParts: []
+journalEntry: "FULL LEARNING STACK COMPILED. From imitation to adaptation -- the complete robot learning toolkit."
+---
+
+# Robot Learning Summary
+
+This module covered the progression from basic imitation learning to sophisticated adaptive movement primitives. Here we consolidate all key concepts, equations, and comparisons for exam preparation.
+
+## Part 1: Imitation Learning Foundations
+
+### Behavioral Cloning
+
+Supervised learning from expert demonstrations:
+
+$$
+\mathcal{L}(\theta) = \frac{1}{N} \sum_{i=1}^{N} \|\hat{\pi}_\theta(\mathbf{s}_i) - \mathbf{a}_i\|^2
+$$
+
+**Critical flaw:** Compounding errors due to distribution shift.
+
+$$
+\text{Total error} \propto \epsilon T^2 \quad \text{(quadratic in horizon)}
+$$
+
+### DAgger (Dataset Aggregation)
+
+Iterative data collection under the learner's distribution:
+
+$$
+\mathcal{D}_{n+1} = \mathcal{D}_n \cup \{(\mathbf{s}, \pi^*(\mathbf{s})) : \mathbf{s} \sim d_{\hat{\pi}_n}\}
+$$
+
+Reduces error to $O(\epsilon T)$ (linear). Requires interactive expert.
+
+### Inverse RL
+
+Recovers the expert's reward function $R^*$ from demonstrations. The reward function is the most **succinct, robust, and transferable** representation of a task.
+
+### Comparison
+
+| Method | Error Growth | Expert Needed | Key Limitation |
+|--------|-------------|---------------|----------------|
+| Behavioral Cloning | $O(\epsilon T^2)$ | Offline only | Distribution shift |
+| DAgger | $O(\epsilon T)$ | Interactive | Expert availability |
+| Inverse RL | Depends on RL | Offline only | Computational cost |
+| Goal-conditioned BC | $O(\epsilon T^2)$ | Offline only | Still has distribution shift |
+
+## Part 2: Gaussian Mixture Models for LfD
+
+### GMM
+
+$$
+P(\boldsymbol{\xi}) = \sum_{k=1}^{K} \pi_k \, \mathcal{N}(\boldsymbol{\xi} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
+$$
+
+### EM Algorithm
+
+**E-step (responsibilities):**
+
+$$
+\gamma_{nk} = \frac{\pi_k \mathcal{N}(\boldsymbol{\xi}_n \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}{\sum_j \pi_j \mathcal{N}(\boldsymbol{\xi}_n \mid \boldsymbol{\mu}_j, \boldsymbol{\Sigma}_j)}
+$$
+
+**M-step (parameter updates):**
+
+$$
+\boldsymbol{\mu}_k = \frac{\sum_n \gamma_{nk} \boldsymbol{\xi}_n}{\sum_n \gamma_{nk}}, \quad
+\boldsymbol{\Sigma}_k = \frac{\sum_n \gamma_{nk}(\boldsymbol{\xi}_n - \boldsymbol{\mu}_k)(\boldsymbol{\xi}_n - \boldsymbol{\mu}_k)^T}{\sum_n \gamma_{nk}}, \quad
+\pi_k = \frac{\sum_n \gamma_{nk}}{N}
+$$
+
+### GMR (Gaussian Mixture Regression)
+
+Conditioning on time to produce trajectory:
+
+$$
+\hat{\boldsymbol{\mu}}_k^s(t^*) = \boldsymbol{\mu}_k^s + \Sigma_k^{st}(\Sigma_k^{tt})^{-1}(t^* - \mu_k^t)
+$$
+
+$$
+\hat{\boldsymbol{\mu}}^s(t^*) = \sum_k h_k(t^*) \hat{\boldsymbol{\mu}}_k^s(t^*)
+$$
+
+### TP-GMM
+
+Generalizes across reference frames using product of Gaussians:
+
+$$
+\mathcal{N}(\hat{\boldsymbol{\mu}}_k, \hat{\boldsymbol{\Sigma}}_k) \propto \prod_{p=1}^{P} \mathcal{N}(\mathbf{A}_p \boldsymbol{\mu}_{k,p} + \mathbf{b}_p, \mathbf{A}_p \boldsymbol{\Sigma}_{k,p} \mathbf{A}_p^T)
+$$
+
+## Part 3: Dynamic Movement Primitives
+
+### Core DMP Equations
+
+**Transformation system:**
+
+$$
+\tau \ddot{y} = \alpha_y(\beta_y(g - y) - \dot{y}) + f(x)
+$$
+
+**Canonical system:**
+
+$$
+\tau \dot{x} = -\alpha_x x
+$$
+
+**Forcing function:**
+
+$$
+f(x) = \frac{\sum_i \psi_i(x) w_i}{\sum_i \psi_i(x)} x(g - y_0)
+$$
+
+### Key Properties
+
+| Property | How It Works |
+|----------|-------------|
+| Goal convergence | $f(x) \to 0$ as $x \to 0$, spring-damper takes over |
+| Goal adaptation | Change $g$; scaling via $(g - y_0)$ term |
+| Temporal scaling | Change $\tau$; shape preserved through phase variable |
+| Stability | Critical damping with $\beta_y = \alpha_y / 4$ |
+| Learning | Weighted linear regression on $f_{\text{target}}$ |
+
+## Part 4: CNMP
+
+### Architecture
+
+$$
+(t_i, SM(t_i), \gamma) \xrightarrow{\text{Encoder}} \mathbf{r}_i \xrightarrow{\text{Avg}} \mathbf{r} \xrightarrow[\text{with } (t_q, \gamma)]{\text{Query Net}} (\boldsymbol{\mu}_q, \boldsymbol{\sigma}_q)
+$$
+
+### Training Loss
+
+$$
+\mathcal{L} = -\sum_q \log \mathcal{N}(\mathbf{y}_q \mid \boldsymbol{\mu}_q, \text{diag}(\boldsymbol{\sigma}_q^2))
+$$
+
+### Key Features
+- Learns from multiple demonstrations
+- Provides uncertainty estimates
+- Natural task parameterization via $\gamma$
+- Via-point conditioning through context set
+
+## Part 5: ACNMP
+
+### Pipeline
+
+$$
+\text{Demos} \xrightarrow{(I)} \text{CNMP} \xrightarrow{(II)} \text{Conditioning} \xrightarrow{(III)} \text{Trajectory} \xrightarrow{(IV)} \text{Execution} \xrightarrow{(V)} \begin{cases} \text{Success} \to \text{Update (VIII)} \\ \text{Fail} \to \text{RL (VI)} \to \text{Adapt (VII)} \end{cases}
+$$
+
+### Key Insight
+
+RL operates in the **conditioning space** (low-dimensional) rather than the action space (high-dimensional):
+
+$$
+\pi_{\text{RL}} : \text{failure info} \to \text{new context points} \xrightarrow{\text{CNMP}} \text{adapted trajectory}
+$$
+
+## Complete Method Comparison
+
+| | BC | DAgger | GMM/GMR | TP-GMM | DMP | CNMP | ACNMP |
+|--|-----|--------|---------|--------|-----|------|-------|
+| **Demos** | Many | Interactive | Multiple | Multiple | Single | Multiple | Multiple |
+| **Uncertainty** | No | No | Yes | Yes | No | Yes | Yes |
+| **Goal adapt** | No | No | Limited | Frame-based | Yes | Via $\gamma$ | Via $\gamma$ + RL |
+| **Via-points** | No | No | Possible | Possible | Difficult | Natural | Natural |
+| **Novel tasks** | No | Limited | Interpolation | Frame interp. | Goal only | Interpolation | RL adaptation |
+| **Online adapt** | No | Yes | No | No | No | No | Yes |
+
+## The Big Picture
+
+The progression through this module follows a clear logic:
+
+1. **Behavioral cloning** is the simplest but fails due to distribution shift
+2. **DAgger** fixes distribution shift but needs an interactive expert
+3. **GMMs** encode demonstration variability probabilistically
+4. **TP-GMMs** add spatial generalization through multiple frames
+5. **DMPs** provide stable, adaptable movements from single demonstrations
+6. **CNMPs** combine neural flexibility with uncertainty and task parameterization
+7. **ACNMPs** add online adaptation via RL when demonstrations are insufficient
+
+Each method builds on the limitations of its predecessors.
+
+## Exam Preparation Checklist
+
+- [ ] Can you explain why behavioral cloning has $O(\epsilon T^2)$ error growth?
+- [ ] Can you describe the DAgger algorithm and why it helps?
+- [ ] Can you write the EM update equations for GMM parameters?
+- [ ] Can you explain how GMR conditions on time to produce a trajectory?
+- [ ] Can you write the DMP transformation system equation and explain each term?
+- [ ] Can you explain why the forcing function vanishes and why that guarantees convergence?
+- [ ] Can you describe the CNMP encoder-aggregator-decoder architecture?
+- [ ] Can you explain the key insight of ACNMP (RL in conditioning space)?
+- [ ] Can you compare DMP, CNMP, and ACNMP in terms of their capabilities?
+
+## Key Takeaway
+
+> Robot learning has evolved from simple behavioral cloning to sophisticated adaptive systems. The key themes are: encoding demonstration variability (GMMs, CNMPs), ensuring stable execution (DMPs), providing uncertainty estimates (GMR, CNMP), and enabling online adaptation (ACNMP). Modern systems like ACNMP combine the data efficiency of learning from demonstrations with the exploration capability of reinforcement learning, operating in the structured conditioning space of neural movement primitives.

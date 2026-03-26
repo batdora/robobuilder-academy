@@ -1,0 +1,179 @@
+---
+title: "Actor-Critic Methods"
+lessonId: "pg-04-actor-critic"
+moduleId: "04-policy-optimization"
+order: 4
+xpReward: 300
+robotPart: "MOTOR_CORTEX"
+requiresParts: ["CHASSIS", "BRAIN", "EYES"]
+journalEntry: "MOTOR_CORTEX installed. The robot can now coordinate decision-making with learned value judgments. Actor proposes, Critic evaluates -- two minds working as one."
+---
+
+# Actor-Critic Methods
+
+REINFORCE uses Monte Carlo returns to estimate the advantage, which means we must wait until the end of an episode. **Actor-Critic** methods fix this by using a **learned value function** (the Critic) to provide real-time feedback to the policy (the Actor).
+
+## The Actor-Critic Architecture
+
+The actor-critic framework has two components:
+
+- **Actor** ($\pi_\theta$): The policy network parameterized by $\theta$. It decides which actions to take.
+- **Critic** ($V_\phi$ or $Q_\phi$): The value function network parameterized by $\phi$. It evaluates how good the actor's actions are.
+
+The Actor asks: "What should I do?"
+The Critic answers: "How good was that?"
+
+## From REINFORCE to Actor-Critic
+
+Recall the policy gradient with baseline:
+
+$$
+\hat{g} = \frac{1}{m}\sum_{i=1}^{m}\sum_{t=0}^{H-1} \nabla_\theta \log \pi_\theta(u_t^{(i)} | s_t^{(i)}) \left(\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)}) - V^\pi(s_t^{(i)})\right)
+$$
+
+The term $\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)})$ is a **single-sample Monte Carlo estimate** of $Q^\pi(s_t, u_t)$. It is unbiased but has high variance because we use only one sampled future.
+
+**Actor-Critic idea:** Replace this noisy single-sample estimate with a **learned function approximator**.
+
+## The Advantage Function
+
+The **advantage function** measures how much better an action is compared to the average action in that state:
+
+$$
+A^\pi(s, a) = Q^\pi(s, a) - V^\pi(s)
+$$
+
+**Properties:**
+- $A^\pi(s, a) > 0$: Action $a$ is better than average in state $s$
+- $A^\pi(s, a) < 0$: Action $a$ is worse than average
+- $\mathbb{E}_{a \sim \pi}[A^\pi(s, a)] = 0$: The average advantage is zero (by definition)
+
+The policy gradient with the advantage function:
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta}\left[\nabla_\theta \log \pi_\theta(a|s) \cdot A^\pi(s, a)\right]
+$$
+
+## Variance Reduction by Function Approximation
+
+Instead of estimating $Q^{\pi,\gamma}(s, u)$ from a single rollout, we can use **bootstrapping** with the learned value function $V_\phi^\pi$:
+
+$$
+Q^{\pi,\gamma}(s, u) = \mathbb{E}[r_0 + \gamma r_1 + \gamma^2 r_2 + \cdots \mid s_0 = s, u_0 = u]
+$$
+
+We can truncate at different points and substitute $V^\pi$:
+
+| Estimator | Formula | Bias | Variance |
+|-----------|---------|------|----------|
+| 1-step | $r_0 + \gamma V^\pi(s_1)$ | Higher bias | Lower variance |
+| 2-step | $r_0 + \gamma r_1 + \gamma^2 V^\pi(s_2)$ | Medium bias | Medium variance |
+| $k$-step | $\sum_{i=0}^{k-1}\gamma^i r_i + \gamma^k V^\pi(s_k)$ | Less bias | More variance |
+| Full MC | $\sum_{i=0}^{\infty}\gamma^i r_i$ | No bias | Highest variance |
+
+Each row trades off bias (from using the approximate $V^\pi$) against variance (from using more sampled rewards).
+
+## The TD Error as Advantage Estimate
+
+The simplest actor-critic uses the **1-step TD error** as the advantage estimate:
+
+$$
+\delta_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t)
+$$
+
+This is an estimate of the advantage because:
+
+$$
+\mathbb{E}[\delta_t | s_t, a_t] = \mathbb{E}[r_t + \gamma V^\pi(s_{t+1}) | s_t, a_t] - V^\pi(s_t) = Q^\pi(s_t, a_t) - V^\pi(s_t) = A^\pi(s_t, a_t)
+$$
+
+So $\delta_t$ is an unbiased estimate of the advantage (assuming $V_\phi \approx V^\pi$).
+
+## A2C: Advantage Actor-Critic
+
+The **A2C** (Advantage Actor-Critic) algorithm:
+
+> **Algorithm: A2C (Advantage Actor-Critic)**
+>
+> Initialize policy parameters $\theta$, value function parameters $\phi$
+>
+> **for** iteration $= 1, 2, \ldots$ **do**
+> 1. Collect trajectories using current policy $\pi_\theta$
+> 2. Compute advantage estimates at each timestep:
+>    - Option A (MC): $\hat{A}_t = \sum_{k=t}^{T-1}\gamma^{k-t}r_k - V_\phi(s_t)$
+>    - Option B (TD): $\hat{A}_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t)$
+>    - Option C ($n$-step): $\hat{A}_t = \sum_{k=0}^{n-1}\gamma^k r_{t+k} + \gamma^n V_\phi(s_{t+n}) - V_\phi(s_t)$
+> 3. Update critic by minimizing:
+>    $\phi \leftarrow \arg\min_\phi \sum_t \left(V_\phi(s_t) - \hat{R}_t\right)^2$
+>    where $\hat{R}_t$ is the target return (MC or bootstrapped)
+> 4. Update actor using policy gradient:
+>    $\theta \leftarrow \theta + \alpha \sum_t \nabla_\theta \log \pi_\theta(a_t | s_t) \hat{A}_t$
+> **end for**
+
+## A3C: Asynchronous Advantage Actor-Critic
+
+**A3C** (Mnih et al., ICML 2016) extends A2C with parallelism:
+
+- Run **multiple workers** in parallel, each with its own copy of the environment
+- Each worker collects experience and computes gradients independently
+- Workers **asynchronously** update a shared set of parameters
+- The asynchrony provides a form of **exploration** (different workers are at different points in parameter space)
+
+A3C uses:
+- **Likelihood ratio policy gradient** for the actor
+- **$n$-step advantage estimation** (e.g., $k = 5$ step lookahead) for the critic
+
+Results from the A3C paper showed it outperformed DQN on many Atari games while training much faster due to parallelism.
+
+## The Bias-Variance Spectrum
+
+Actor-critic methods give us a **spectrum** between pure Monte Carlo (no bias, high variance) and pure bootstrapping (higher bias, lower variance):
+
+$$
+\underbrace{r_t + \gamma V(s_{t+1})}_{\text{1-step: low variance, high bias}} \quad \longleftrightarrow \quad \underbrace{\sum_{k=t}^{T-1}\gamma^{k-t}r_k}_{\text{MC: high variance, no bias}}
+$$
+
+The optimal choice depends on:
+- **Quality of $V_\phi$**: If the value function is accurate, use more bootstrapping (fewer steps)
+- **Environment stochasticity**: In highly stochastic environments, more bootstrapping helps reduce variance
+- **Episode length**: For very long episodes, MC returns are impractical
+
+## Why Not Just Learn Q Instead of V?
+
+If we learn $Q_\phi(s, a)$ directly (as in DQN), we could compute the advantage as $A(s,a) = Q_\phi(s,a) - V(s)$. But:
+
+1. $Q(s,a)$ has an extra input dimension (the action), making it harder to learn in continuous action spaces
+2. Learning $V(s)$ alone is sufficient: $A(s,a) \approx r + \gamma V(s') - V(s)$ (the TD error)
+3. Using $V$ reduces the number of function approximations needed
+
+## Worked Example: One-Step Actor-Critic Update
+
+**Setup:** State $s_t$, action $a_t$, reward $r_t = 3$, next state $s_{t+1}$. The critic estimates $V_\phi(s_t) = 7$, $V_\phi(s_{t+1}) = 8$. Discount $\gamma = 0.99$.
+
+**Step 1: Compute TD error (advantage estimate)**
+
+$$
+\delta_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t) = 3 + 0.99 \times 8 - 7 = 3 + 7.92 - 7 = 3.92
+$$
+
+Since $\delta_t > 0$, action $a_t$ was better than expected.
+
+**Step 2: Update actor**
+
+$$
+\theta \leftarrow \theta + \alpha \nabla_\theta \log \pi_\theta(a_t | s_t) \cdot 3.92
+$$
+
+The policy is nudged to make action $a_t$ more likely in state $s_t$.
+
+**Step 3: Update critic**
+
+$$
+\phi \leftarrow \phi - \beta \nabla_\phi (V_\phi(s_t) - (r_t + \gamma V_\phi(s_{t+1})))^2
+$$
+
+The value function is adjusted to better predict returns.
+
+## Key Takeaway
+
+> Actor-Critic methods combine the best of policy gradient and value-based approaches. The **Actor** (policy $\pi_\theta$) decides actions, while the **Critic** (value function $V_\phi$) evaluates them. Using the TD error $\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$ as an advantage estimate enables learning at every time step (not just at episode end) and dramatically reduces variance compared to REINFORCE. The next lesson shows how to interpolate between MC and TD estimates optimally using GAE.

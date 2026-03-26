@@ -1,0 +1,237 @@
+---
+title: "Value Functions & Bellman Equations"
+lessonId: "rl-02-value-functions"
+moduleId: "02-rl-foundations"
+order: 2
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN"]
+isBonus: false
+---
+
+# Value Functions & Bellman Equations
+
+Value functions are the heart of reinforcement learning. They tell us **how good** it is for the agent to be in a given state (or to take a given action in a state). This lesson derives every key equation you need.
+
+## State-Value Function $V^\pi(s)$
+
+The **value of a state** $s$ under policy $\pi$ is the expected return starting from that state, following policy $\pi$:
+
+$$
+V^\pi(s) = E_\pi\{R_t \mid s_t = s\} = E_\pi\left\{\sum_{k=0}^{\infty} \gamma^k r_{t+k+1} \;\middle|\; s_t = s\right\}
+$$
+
+In words: "If I start in state $s$ and follow policy $\pi$ forever, what total discounted reward do I expect to collect?"
+
+## Action-Value Function $Q^\pi(s, a)$
+
+The **value of taking action $a$ in state $s$** under policy $\pi$ is the expected return starting from that state, taking that action, and thereafter following $\pi$:
+
+$$
+Q^\pi(s, a) = E_\pi\{R_t \mid s_t = s, a_t = a\} = E_\pi\left\{\sum_{k=0}^{\infty} \gamma^k r_{t+k+1} \;\middle|\; s_t = s, a_t = a\right\}
+$$
+
+### Relationship Between $V^\pi$ and $Q^\pi$
+
+The state-value function is the expected action-value over all actions under the policy:
+
+$$
+V^\pi(s) = \sum_{a} \pi(s, a) \, Q^\pi(s, a)
+$$
+
+## Bellman Expectation Equation for $V^\pi$
+
+The Bellman equation expresses a recursive relationship between the value of a state and the values of its successor states. Here is the full derivation:
+
+**Step 1:** Write out the return:
+
+$$
+R_t = r_{t+1} + \gamma r_{t+2} + \gamma^2 r_{t+3} + \gamma^3 r_{t+4} + \cdots
+$$
+
+**Step 2:** Factor out $\gamma$:
+
+$$
+R_t = r_{t+1} + \gamma(r_{t+2} + \gamma r_{t+3} + \gamma^2 r_{t+4} + \cdots)
+$$
+
+**Step 3:** Recognize the inner sum as $R_{t+1}$:
+
+$$
+R_t = r_{t+1} + \gamma R_{t+1}
+$$
+
+**Step 4:** Take the expectation:
+
+$$
+V^\pi(s) = E_\pi\{R_t \mid s_t = s\} = E_\pi\{r_{t+1} + \gamma V^\pi(s_{t+1}) \mid s_t = s\}
+$$
+
+**Step 5:** Expand the expectation over actions and next states:
+
+$$
+\boxed{V^\pi(s) = \sum_{a} \pi(s, a) \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma V^\pi(s')\right]}
+$$
+
+This is the **Bellman expectation equation for $V^\pi$**. It says: the value of state $s$ equals the expected immediate reward plus the discounted value of the next state, averaged over all actions (weighted by the policy) and all possible next states (weighted by transition probabilities).
+
+### Important Properties
+
+- This is a **set of linear equations**, one for each state
+- The value function $V^\pi$ is the **unique solution** of this system
+- There are $|S|$ equations and $|S|$ unknowns
+
+## Bellman Expectation Equation for $Q^\pi$
+
+Similarly, for the action-value function:
+
+$$
+Q^\pi(s, a) = E_\pi\{r_{t+1} + \gamma Q^\pi(s_{t+1}, a_{t+1}) \mid s_t = s, a_t = a\}
+$$
+
+Expanding:
+
+$$
+Q^\pi(s, a) = \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma \sum_{a'} \pi(s', a') \, Q^\pi(s', a')\right]
+$$
+
+## Backup Diagrams
+
+Backup diagrams visually represent the Bellman equations:
+
+**For $V^\pi$:** Starting from state $s$ (open circle at top), we branch over all actions $a$ (filled circles), then for each action we branch over all possible next states $s'$ (open circles at bottom). Each branch is weighted by $\pi(s,a)$ and $\mathbf{P}_{ss'}^a$.
+
+**For $Q^\pi$:** Starting from state-action pair $(s,a)$ (filled circle at top), we branch over all next states $s'$ (open circles), then for each next state we branch over all actions $a'$ (filled circles at bottom). Each branch is weighted by $\mathbf{P}_{ss'}^a$ and $\pi(s', a')$.
+
+## Gridworld Example
+
+Consider a 5x5 grid with special states A and B:
+- Actions: north, south, east, west (deterministic)
+- If an action would take the agent off the grid: no move, reward = -1
+- Other actions produce reward = 0
+- From state A: any action goes to A' with reward +10
+- From state B: any action goes to B' with reward +5
+
+Under an **equiprobable random policy** ($\pi(s,a) = 0.25$ for all $a$) with $\gamma = 0.9$, the state-value function assigns higher values to states near A and B. For instance, state A has value 3.3 (not 10) because the random policy often moves away from the reward after teleporting.
+
+This demonstrates that $V^\pi$ depends heavily on the policy -- even states near large rewards can have low value under a bad policy.
+
+## Optimal Value Functions
+
+For finite MDPs, policies can be **partially ordered**:
+
+$$
+\pi \geq \pi' \quad \text{if and only if} \quad V^\pi(s) \geq V^{\pi'}(s) \quad \text{for all } s \in S
+$$
+
+There are always one or more policies that are better than or equal to all others. These are the **optimal policies**, denoted $\pi^*$.
+
+### Optimal State-Value Function
+
+All optimal policies share the same **optimal state-value function**:
+
+$$
+V^*(s) = \max_\pi V^\pi(s) \quad \text{for all } s \in S
+$$
+
+### Optimal Action-Value Function
+
+All optimal policies also share the same **optimal action-value function**:
+
+$$
+Q^*(s, a) = \max_\pi Q^\pi(s, a) \quad \text{for all } s \in S \text{ and } a \in A(s)
+$$
+
+This is the expected return for taking action $a$ in state $s$ and thereafter following an **optimal** policy.
+
+### Relationship Between $V^*$ and $Q^*$
+
+$$
+V^*(s) = \max_{a \in A(s)} Q^*(s, a)
+$$
+
+## Bellman Optimality Equation for $V^*$
+
+The value of a state under an optimal policy must equal the expected return for the **best** action from that state:
+
+$$
+V^*(s) = \max_{a \in A(s)} Q^{\pi^*}(s, a)
+$$
+
+$$
+= \max_{a \in A(s)} E\{r_{t+1} + \gamma V^*(s_{t+1}) \mid s_t = s, a_t = a\}
+$$
+
+$$
+\boxed{V^*(s) = \max_{a \in A(s)} \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma V^*(s')\right]}
+$$
+
+Notice the key difference from the Bellman expectation equation: instead of averaging over actions (weighted by $\pi$), we take the **max** over actions. This makes it a system of **nonlinear** equations.
+
+$V^*$ is the **unique solution** of this system of nonlinear equations.
+
+## Bellman Optimality Equation for $Q^*$
+
+$$
+Q^*(s, a) = E\{r_{t+1} + \gamma \max_{a'} Q^*(s_{t+1}, a') \mid s_t = s, a_t = a\}
+$$
+
+$$
+\boxed{Q^*(s, a) = \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma \max_{a'} Q^*(s', a')\right]}
+$$
+
+$Q^*$ is also the **unique solution** of its system of nonlinear equations.
+
+### Backup Diagrams for Optimality Equations
+
+**For $V^*$:** Same as $V^\pi$ backup, but instead of averaging over actions, we take the **max** (indicated by an arc over the action branches).
+
+**For $Q^*$:** Same as $Q^\pi$ backup, but at the next state level, we take the **max** over next actions instead of averaging.
+
+## Why Optimal Value Functions are Useful
+
+Any policy that is **greedy** with respect to $V^*$ is an optimal policy:
+
+$$
+\pi^*(s) = \arg\max_{a \in A(s)} \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma V^*(s')\right]
+$$
+
+Therefore, given $V^*$, **one-step-ahead search** produces the long-term optimal actions. You do not need to look further ahead -- the value function already encapsulates all future information.
+
+With $Q^*$, it is even simpler -- the agent does not even need a model:
+
+$$
+\pi^*(s) = \arg\max_{a} Q^*(s, a)
+$$
+
+### Gridworld Optimal Values
+
+In the 5x5 gridworld with states A (+10) and B (+5), the optimal value function $V^*$ assigns much higher values than the random policy $V^\pi$. For example, the top-left corner has $V^* = 22.0$ compared to $V^\pi = 3.3$. The optimal policy directs the agent toward A and B efficiently.
+
+## Summary of All Bellman Equations
+
+| Equation | Formula | Linear? |
+|----------|---------|---------|
+| Bellman Expectation for $V^\pi$ | $V^\pi(s) = \sum_a \pi(s,a) \sum_{s'} \mathbf{P}_{ss'}^a[\mathbf{R}_{ss'}^a + \gamma V^\pi(s')]$ | Yes |
+| Bellman Expectation for $Q^\pi$ | $Q^\pi(s,a) = \sum_{s'} \mathbf{P}_{ss'}^a[\mathbf{R}_{ss'}^a + \gamma \sum_{a'} \pi(s',a') Q^\pi(s',a')]$ | Yes |
+| Bellman Optimality for $V^*$ | $V^*(s) = \max_a \sum_{s'} \mathbf{P}_{ss'}^a[\mathbf{R}_{ss'}^a + \gamma V^*(s')]$ | No |
+| Bellman Optimality for $Q^*$ | $Q^*(s,a) = \sum_{s'} \mathbf{P}_{ss'}^a[\mathbf{R}_{ss'}^a + \gamma \max_{a'} Q^*(s',a')]$ | No |
+
+## Worked Example
+
+Consider a simple 2-state MDP with $S = \{s_1, s_2\}$, one action per state, $\gamma = 0.5$:
+- From $s_1$: reward = 5, always transitions to $s_2$
+- From $s_2$: reward = 1, always transitions to $s_1$
+
+The Bellman equations are:
+- $V(s_1) = 5 + 0.5 \cdot V(s_2)$
+- $V(s_2) = 1 + 0.5 \cdot V(s_1)$
+
+Solving: substitute the second into the first:
+- $V(s_1) = 5 + 0.5(1 + 0.5 \cdot V(s_1)) = 5 + 0.5 + 0.25 \cdot V(s_1)$
+- $0.75 \cdot V(s_1) = 5.5$
+- $V(s_1) = 7.33$
+- $V(s_2) = 1 + 0.5 \times 7.33 = 4.67$
+
+## Key Takeaway
+
+> The Bellman equations are the fundamental recursive equations of RL. The expectation versions (with $\pi$) let us evaluate a policy; the optimality versions (with max) define what the best possible behavior looks like. Every RL algorithm is essentially a method for solving one of these equations.

@@ -1,0 +1,166 @@
+---
+title: "Adaptive Conditional Neural Movement Primitives"
+lessonId: "robot-learning-05-acnmp"
+moduleId: "06-robot-learning"
+order: 5
+xpReward: 250
+robotPart: "IMITATION_DRIVE"
+isBonus: true
+requiresParts: []
+journalEntry: "IMITATION DRIVE INSTALLED. Adapting on the fly -- when the plan fails, learn from failure and try again."
+---
+
+# Adaptive Conditional Neural Movement Primitives (ACNMP)
+
+What happens when a CNMP-generated trajectory fails during execution? The robot needs to **adapt**. **Adaptive CNMP (ACNMP)** extends CNMP with an online adaptation loop that combines Learning from Demonstration (LfD) with Reinforcement Learning (RL) to handle task extrapolation and runtime failures.
+
+## Motivation: Challenges in Adaptation
+
+Real-world robot deployment faces three key challenges:
+
+1. **Sample efficiency:** The robot cannot afford thousands of trial-and-error episodes
+2. **Preserving demonstrated behavior:** Adaptation should not destroy the learned skill for familiar tasks
+3. **Skill transfer:** The adapted skill should work across different robot embodiments or slightly different tasks
+
+ACNMP addresses all three by combining the data efficiency of LfD with the exploration capability of RL.
+
+## ACNMP Pipeline
+
+The ACNMP system operates in a closed loop with 8 stages:
+
+### Stage I: Training (Learning from Demonstrations)
+
+Train a CNMP on a demonstration dataset:
+
+$$
+\theta^* = \arg\min_\theta \mathcal{L}_{\text{CNMP}}(\theta, \mathcal{D}_{\text{demos}})
+$$
+
+The CNMP learns the trajectory distribution from demonstrations (as covered in the previous lesson).
+
+### Stage II: Test-Time Conditioning
+
+At execution time, provide task-specific context (e.g., goal position, via-points):
+
+$$
+C_{\text{test}} = \{(t_i, \mathbf{y}_i, \gamma_{\text{new}})\}
+$$
+
+### Stage III: Trajectory Generation
+
+The CNMP generates a trajectory conditioned on the test-time context:
+
+$$
+\boldsymbol{\mu}(t), \boldsymbol{\sigma}(t) = \text{CNMP}(t, C_{\text{test}})
+$$
+
+### Stage IV: Robot Execution
+
+Execute the generated trajectory on the real robot.
+
+### Stage V: Success or Failure Detection
+
+Monitor the execution outcome:
+- **Success:** The task is completed (proceed to optional training set update)
+- **Runtime failure:** The trajectory fails (e.g., collision, missed target)
+
+### Stage VI: RL-Based Adaptation
+
+When the trajectory fails, an **RL agent** modifies the trajectory to find a successful solution. The RL agent operates in the **CNMP's conditioning space**, not in the raw action space:
+
+- **State:** Current context points and task parameters
+- **Action:** New context points (via-points, goal adjustments) to condition the CNMP
+- **Reward:** Task success/failure
+
+$$
+\pi_{\text{RL}}(\text{new context} \mid \text{failure info}) \to C_{\text{adapted}}
+$$
+
+The CNMP then generates a new trajectory from $C_{\text{adapted}}$.
+
+This is crucial: the RL agent does not learn a policy from scratch -- it learns to **provide better conditioning** to the already-trained CNMP. This dramatically reduces the RL search space and improves sample efficiency.
+
+### Stage VII: Successful Adaptation
+
+Once the RL agent finds context points that lead to task success, the successful trajectory is obtained.
+
+### Stage VIII: Updating the Training Set
+
+The successful trajectory is added to the CNMP's training set:
+
+$$
+\mathcal{D}_{\text{demos}} \leftarrow \mathcal{D}_{\text{demos}} \cup \{(\text{adapted trajectory})\}
+$$
+
+The CNMP is then re-trained (or fine-tuned), incorporating the new experience. This means future encounters with similar tasks can be handled directly by the CNMP without RL.
+
+## The Key Insight: RL in Conditioning Space
+
+Traditional approaches would use RL to learn the trajectory directly (high-dimensional, slow). ACNMP uses RL to learn **what to condition on** (low-dimensional, fast):
+
+$$
+\underbrace{\text{Context points}}_{\text{RL output}} \xrightarrow{\text{CNMP}} \underbrace{\text{Full trajectory}}_{\text{Execution}}
+$$
+
+The CNMP acts as a **structured prior** -- it already knows how to generate smooth, feasible trajectories. The RL agent only needs to find the right "instructions" (context points) to give to the CNMP.
+
+## Comparison with Pure RL and Pure LfD
+
+| Approach | Sample Efficiency | Handles Novel Tasks | Preserves Demo Behavior |
+|----------|------------------|--------------------|-----------------------|
+| Pure RL | Low (thousands of episodes) | Yes (explores freely) | N/A |
+| Pure LfD (CNMP) | High (few demos) | Limited (interpolation only) | Yes |
+| ACNMP | High (RL in low-dim space) | Yes (via adaptation) | Yes (CNMP backbone) |
+
+## CNMP Architecture Within ACNMP
+
+The CNMP component follows the same architecture:
+
+$$
+\text{Observations: } (SM(t_i), t_i, \gamma) \xrightarrow{\text{Encoder Net}} \mathbf{r}_i \xrightarrow{\text{Avg}} \mathbf{r} \xrightarrow{\text{Query Net}} (\boldsymbol{\mu}_q, \boldsymbol{\sigma}_q)
+$$
+
+The difference in ACNMP is that the context points fed to the encoder can come from:
+1. The original demonstrations (training time)
+2. Test-time task specifications (deployment)
+3. RL-discovered adaptations (failure recovery)
+
+## Few-Shot Adaptation
+
+ACNMP enables **few-shot adaptation** to new tasks:
+
+1. Generate initial trajectory with CNMP (zero-shot from demonstrations)
+2. If it fails, RL finds adapted context in a few episodes
+3. The successful trajectory is stored for future zero-shot performance
+
+After a handful of adaptation episodes, the CNMP can handle the new task directly. This is far more efficient than learning from scratch.
+
+## Practical Example: Pick-and-Place with Obstacles
+
+**Training:** CNMP trained on demonstrations of picking up objects with no obstacles.
+
+**New task:** Pick up an object with an obstacle in the path.
+
+1. **CNMP generates** the usual trajectory (ignoring obstacle) -- **fails** (collision)
+2. **RL agent** explores context points: tries adding a via-point above the obstacle
+3. After a few episodes, finds: adding context point $(t = 0.4, y = \text{above obstacle})$
+4. **CNMP regenerates** a trajectory passing through the via-point -- **succeeds**
+5. **Updated training set** includes the obstacle-avoidance trajectory
+6. **Future similar tasks:** CNMP can directly generate obstacle-avoidance trajectories
+
+## Challenges in Adaptation (From the Lectures)
+
+The lecture slides specifically highlight:
+
+1. **Task extrapolation through trial and error and skill transfer:** How to handle tasks outside the training distribution
+2. **Sample efficiency:** Minimizing the number of real-world trials needed
+3. **Preserving demonstrated behavior:** Ensuring adaptation does not corrupt performance on previously learned tasks
+4. **Skill transfer between different embodiments:** Applying learned skills across different robot morphologies
+
+ACNMP addresses these through its combination of CNMP (preservation, efficiency) and RL (extrapolation, exploration).
+
+## Key Takeaway
+
+> ACNMP combines the data efficiency of Learning from Demonstration (via CNMP) with the exploration capability of Reinforcement Learning. When CNMP-generated trajectories fail, an RL agent finds adapted context points in a low-dimensional space, enabling rapid adaptation with few episodes. Successful adaptations are incorporated back into the training set, enabling continuous improvement. This architecture addresses the fundamental challenges of sample efficiency, behavior preservation, and task extrapolation in robot learning.
+
+The **IMITATION DRIVE** is now active. Your robot can learn from demonstrations, generate adaptive trajectories, and recover from failures through intelligent adaptation -- the complete learning-from-demonstration toolkit.

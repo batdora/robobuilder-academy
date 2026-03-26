@@ -1,0 +1,184 @@
+---
+title: "Temporal Difference Learning"
+lessonId: "rl-04-td-learning"
+moduleId: "02-rl-foundations"
+order: 4
+xpReward: 250
+requiresParts: ["CHASSIS", "BRAIN", "METABOLISM"]
+isBonus: false
+---
+
+# Temporal Difference Learning
+
+Temporal Difference (TD) learning is one of the most central and novel ideas in reinforcement learning. TD methods combine the advantages of Monte Carlo methods (learning from experience, no model needed) with the advantages of Dynamic Programming (bootstrapping -- updating estimates based on other estimates).
+
+## Chapter Objectives
+
+1. Introduce **Temporal Difference (TD)** learning
+2. Focus first on **policy evaluation** (prediction) methods
+3. Then extend to **control** methods (SARSA, Q-learning)
+
+## The Prediction Problem
+
+**Policy Evaluation:** For a given policy $\pi$, compute the state-value function $V^\pi$.
+
+### Monte Carlo (MC) Update
+
+Recall the simple every-visit Monte Carlo method:
+
+$$
+V(s_t) \leftarrow V(s_t) + \alpha \left[R_t - V(s_t)\right]
+$$
+
+where $R_t$ is the **actual return** after time $t$ -- the sum of all rewards from time $t$ to the end of the episode. This is the **target** for the MC update.
+
+**Limitation:** MC must wait until the **end of the episode** to compute $R_t$. This means:
+- Cannot learn online (step-by-step)
+- Cannot learn from incomplete episodes
+- Cannot be used for continuing (non-episodic) tasks
+
+### TD(0) Update
+
+The simplest TD method, **TD(0)**, updates the value function after every single step:
+
+$$
+V(s_t) \leftarrow V(s_t) + \alpha \left[r_{t+1} + \gamma V(s_{t+1}) - V(s_t)\right]
+$$
+
+The **target** here is $r_{t+1} + \gamma V(s_{t+1})$ -- an **estimate** of the return, not the actual return. This is called the **TD target**.
+
+### Understanding the TD(0) Update
+
+Breaking down each component:
+
+| Component | Meaning |
+|-----------|---------|
+| $V(s_t)$ | Current estimate of value at state $s_t$ |
+| $r_{t+1}$ | Actual immediate reward received |
+| $\gamma V(s_{t+1})$ | Discounted estimated value of next state |
+| $r_{t+1} + \gamma V(s_{t+1})$ | **TD target** -- estimated return |
+| $r_{t+1} + \gamma V(s_{t+1}) - V(s_t)$ | **TD error** $\delta_t$ |
+| $\alpha$ | **Learning rate** (step size) |
+
+The **TD error** is:
+
+$$
+\delta_t = r_{t+1} + \gamma V(s_{t+1}) - V(s_t)
+$$
+
+It measures the difference between the estimated return (TD target) and the current value estimate. If positive, the outcome was better than expected; if negative, it was worse.
+
+### Bootstrapping
+
+TD methods **bootstrap** -- they update their estimate based partly on another estimate ($V(s_{t+1})$). This is the fundamental difference from MC methods, which use only actual experienced returns.
+
+The backup diagram for TD(0) shows that the agent only looks **one step ahead**: from $s_t$, it takes one action, observes $r_{t+1}$ and $s_{t+1}$, and updates $V(s_t)$.
+
+## MC vs TD Comparison
+
+| Feature | Monte Carlo | TD(0) |
+|---------|-------------|-------|
+| **Update timing** | End of episode | Every step |
+| **Target** | $R_t$ (actual return) | $r_{t+1} + \gamma V(s_{t+1})$ (estimated) |
+| **Bootstraps?** | No | Yes |
+| **Requires episodes?** | Yes | No |
+| **Online learning?** | No | Yes |
+| **Bias** | Unbiased | Biased (uses estimates) |
+| **Variance** | High (depends on many random actions) | Low (depends on one step) |
+| **Needs model?** | No | No |
+| **Convergence** | Converges to $V^\pi$ | Converges to $V^\pi$ |
+
+**Key advantages of TD:**
+1. **Online and incremental** -- can update after every step
+2. **Works for continuing tasks** -- does not need episode boundaries
+3. **Lower variance** -- only depends on one transition, not a whole trajectory
+4. **No model needed** -- learns from experience like MC
+
+**TD's trade-off:** The TD target introduces **bias** because it uses the current (possibly inaccurate) estimate $V(s_{t+1})$. However, this bias decreases as $V$ improves, and the reduced variance often leads to faster learning in practice.
+
+## Learning an Action-Value Function
+
+To do control (improve the policy), we need to estimate $Q^\pi$ rather than $V^\pi$. The TD update for action values is:
+
+$$
+Q(s_t, a_t) \leftarrow Q(s_t, a_t) + \alpha \left[r_{t+1} + \gamma Q(s_{t+1}, a_{t+1}) - Q(s_t, a_t)\right]
+$$
+
+After every transition from a nonterminal state $s_t$, we observe $r_{t+1}$, $s_{t+1}$, and the next action $a_{t+1}$, and update accordingly. If $s_{t+1}$ is terminal, then $Q(s_{t+1}, a_{t+1}) = 0$.
+
+## SARSA: On-Policy TD Control
+
+**SARSA** is an on-policy TD control algorithm. The name comes from the quintuple of values used in the update: $(S_t, A_t, R_{t+1}, S_{t+1}, A_{t+1})$ -- that is, **S**tate, **A**ction, **R**eward, **S**tate, **A**ction.
+
+SARSA turns TD prediction into a control method by always updating the policy to be greedy (or $\varepsilon$-greedy) with respect to the current Q-value estimates.
+
+### SARSA Update Rule
+
+$$
+Q(s, a) \leftarrow Q(s, a) + \alpha \left[r + \gamma Q(s', a') - Q(s, a)\right]
+$$
+
+where $a'$ is the action **actually taken** in state $s'$ according to the current policy.
+
+### Algorithm: SARSA (On-Policy TD Control)
+
+```
+Initialize Q(s, a) arbitrarily
+Repeat (for each episode):
+    Initialize s
+    Choose a from s using policy derived from Q (e.g., epsilon-greedy)
+    Repeat (for each step of episode):
+        Take action a, observe r, s'
+        Choose a' from s' using policy derived from Q (e.g., epsilon-greedy)
+        Q(s, a) <- Q(s, a) + alpha * [r + gamma * Q(s', a') - Q(s, a)]
+        s <- s'; a <- a';
+    until s is terminal
+```
+
+### Key Properties of SARSA
+
+- **On-policy**: the Q-values are updated using the action $a'$ that the agent **actually takes** under its current policy
+- The policy used to select actions is the **same** policy being evaluated and improved
+- Typically uses $\varepsilon$-greedy policy for exploration
+- Converges to $Q^*$ as long as all state-action pairs are visited infinitely often and the learning rate decreases appropriately
+
+### Windy Gridworld Example
+
+A standard gridworld with a crosswind:
+- Grid: 10 columns x 7 rows
+- Start: left side (S), Goal: right side (G)
+- **Wind:** columns have upward wind strengths [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
+- Wind pushes the agent upward by the indicated number of cells
+- Undiscounted, episodic, reward = -1 until reaching the goal
+- Actions: standard 4-directional moves (can also try king's moves for exercise)
+
+Using SARSA with $\varepsilon$-greedy exploration:
+- Early episodes take many time steps (the agent does not know how to compensate for wind)
+- After learning, the agent finds a path that compensates for the wind, taking a more direct route to the goal
+- The plot of episodes vs. time steps shows an increasing slope, meaning episodes get shorter as the agent learns
+
+## Expected SARSA
+
+A variant of SARSA that uses the **expected value** of the next action instead of the sampled action:
+
+$$
+Q(s, a) \leftarrow Q(s, a) + \alpha \left[r + \gamma \sum_{a'} \pi(a'|s') Q(s', a') - Q(s, a)\right]
+$$
+
+Instead of using the specific $Q(s', a')$ for the action that would be selected, Expected SARSA averages over all possible next actions weighted by the policy. This **reduces variance** compared to SARSA while remaining on-policy.
+
+## TD vs DP vs MC: The Big Picture
+
+All three approaches solve the same problem (computing or optimizing value functions) but differ in their methods:
+
+| Method | Model needed? | Bootstraps? | Learns from experience? |
+|--------|--------------|-------------|------------------------|
+| **DP** | Yes | Yes | No |
+| **MC** | No | No | Yes |
+| **TD** | No | Yes | Yes |
+
+TD combines the best of both worlds: it bootstraps like DP (using estimates of successor values) but learns from experience like MC (no model required).
+
+## Key Takeaway
+
+> TD learning is the workhorse of modern RL. By bootstrapping -- updating estimates based on other estimates -- TD can learn online, incrementally, and without a model. SARSA extends TD to control by learning Q-values and using them to improve the policy on-the-fly. The TD error $\delta_t = r_{t+1} + \gamma V(s_{t+1}) - V(s_t)$ is one of the most important quantities in all of RL.

@@ -1,0 +1,194 @@
+---
+title: "Experience Replay"
+lessonId: "dqn-03-experience-replay"
+moduleId: "03-deep-q-learning"
+order: 3
+xpReward: 250
+robotPart: "GENERALIZATION_MODULE"
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP"]
+journalEntry: "GENERALIZATION_MODULE installed. I no longer forget. Every experience is stored, indexed, and ready for recall. My learning is no longer trapped in the present moment -- I can revisit any memory at will."
+---
+
+# Experience Replay
+
+Experience replay is one of the two critical innovations that make Deep Q-Networks stable. Originally introduced by Long-Ji Lin in 1993, it breaks the correlation between consecutive training samples by storing experiences in a buffer and sampling from it randomly.
+
+## The Correlation Problem (Revisited)
+
+When an agent follows a trajectory, consecutive transitions are highly correlated:
+
+$$
+(s_1, a_1, r_1, s_2), \quad (s_2, a_2, r_2, s_3), \quad (s_3, a_3, r_3, s_4), \quad \ldots
+$$
+
+If the agent is walking down a corridor, all these states look very similar. Training a neural network on these correlated samples causes:
+
+1. **Overfitting to recent experience** -- the network "forgets" what it learned earlier
+2. **Gradient bias** -- the gradient direction is dominated by the current region of state space
+3. **Catastrophic interference** -- new updates overwrite useful knowledge about other states
+
+This violates the **i.i.d. assumption** that stochastic gradient descent relies on for convergence.
+
+## The Replay Buffer
+
+### Core Concept
+
+The solution is elegantly simple: **store experiences and sample randomly**.
+
+A **replay buffer** (or replay memory) $D$ is a fixed-size dataset that stores transition tuples:
+
+$$
+D = \{(s_t, a_t, r_t, s_{t+1})\}_{t=1}^{N}
+$$
+
+where $N$ is the buffer capacity.
+
+### How It Works
+
+1. **Store:** At each timestep, add the new transition $(s_t, a_t, r_t, s_{t+1})$ to the buffer
+2. **Sample:** When it is time to update, draw a **random minibatch** of transitions from the buffer
+3. **Learn:** Use the minibatch to compute the loss and update the network
+4. **Evict:** When the buffer is full, remove the oldest transitions (FIFO -- first in, first out)
+
+### Why Random Sampling Breaks Correlation
+
+By sampling uniformly at random from the buffer, consecutive training samples are **no longer correlated**:
+
+- One sample might be from the corridor
+- The next might be from a different room
+- The next might be from a completely different episode
+
+This makes the training data distribution approximately **i.i.d.**, which is what SGD needs.
+
+## Benefits of Experience Replay
+
+### 1. Breaking Correlation Between Updates
+
+As discussed above, random sampling decorrelates the training data. Each minibatch is a diverse mix of experiences from different times and places.
+
+### 2. Data Efficiency
+
+Each experience can be used in **many** weight updates, not just one. In online Q-learning, each transition is used exactly once and then discarded. With replay, a particularly informative transition can be sampled and learned from many times.
+
+### 3. Stabilizing the Data Distribution
+
+The data distribution seen by the network changes more slowly because the buffer mixes old and new experiences. Without replay, the data distribution shifts rapidly as the policy changes (the agent visits different states under different policies).
+
+### 4. Off-Policy Learning Compatibility
+
+Experience replay works because Q-learning is an **off-policy** algorithm. The Q-learning update:
+
+$$
+Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma \max_{a'} Q(s',a') - Q(s,a) \right]
+$$
+
+does not depend on which policy generated the experience. We can learn from transitions collected by **any** policy -- including old versions of our own policy.
+
+> If Q-learning were on-policy (like SARSA), we could not use experience replay because the stored experiences would be from an outdated policy.
+
+## Uniform Sampling
+
+The simplest form of experience replay samples each transition with **equal probability**:
+
+$$
+P(\text{sample transition } i) = \frac{1}{|D|}
+$$
+
+where $|D|$ is the current number of transitions in the buffer.
+
+### Minibatch Update
+
+For each training step:
+
+1. Sample a minibatch of $B$ transitions: $\{(s_j, a_j, r_j, s'_j)\}_{j=1}^{B}$
+2. Compute targets for each: $y_j = r_j + \gamma \max_{a'} Q_\theta(s'_j, a')$
+3. Compute the loss:
+
+$$
+L(\theta) = \frac{1}{B} \sum_{j=1}^{B} \left( y_j - Q_\theta(s_j, a_j) \right)^2
+$$
+
+4. Update $\theta$ via gradient descent: $\theta \leftarrow \theta - \alpha \nabla_\theta L(\theta)$
+
+### Typical Buffer Sizes
+
+- Original DQN paper: buffer capacity of **1 million** transitions
+- This means the buffer stores the most recent 1M experiences
+- Minibatch size is typically **32** transitions per update
+
+## Prioritized Experience Replay (Preview)
+
+Uniform sampling treats all transitions equally, but some transitions are more **informative** than others. Transitions with high TD error are "surprising" -- the agent predicted poorly and has more to learn from them.
+
+**Prioritized Experience Replay** (Schaul et al., 2016) samples transitions in proportion to their absolute Bellman error:
+
+$$
+p_i \propto \left| r + \gamma \max_{a'} Q(s', a'; \theta^-) - Q(s, a; \theta) \right|
+$$
+
+This leads to much faster learning. We will study this in detail in Lesson 8.
+
+## Experience Replay in the DQN Training Loop
+
+Here is how experience replay fits into the overall training algorithm:
+
+```
+Initialize replay memory D to capacity N
+Initialize Q-network with random weights theta
+
+For episode = 1 to M:
+  Initialize state s_1
+  For t = 1 to T:
+    // Act
+    With probability epsilon select random action a_t
+    Otherwise select a_t = argmax_a Q(s_t, a; theta)
+    Execute a_t, observe reward r_t and next state s_{t+1}
+
+    // Store
+    Store transition (s_t, a_t, r_t, s_{t+1}) in D
+
+    // Learn
+    Sample random minibatch of transitions (s_j, a_j, r_j, s'_j) from D
+    Compute target y_j for each transition
+    Perform gradient descent step on (y_j - Q(s_j, a_j; theta))^2
+
+  End For
+End For
+```
+
+## Worked Example: Replay Buffer in Action
+
+Consider a simple gridworld where the agent has explored for 1000 steps. The replay buffer $D$ contains 1000 transitions from various parts of the grid.
+
+**Without replay (online):** At step 1001, the agent is in the bottom-left corner. The network update only uses this one transition. The network might improve its estimate for bottom-left states but could worsen estimates for top-right states.
+
+**With replay:** At step 1001, we sample a minibatch of 32 random transitions. These might include:
+- 3 transitions from near the goal (top-right)
+- 5 transitions from the corridor (middle)
+- 4 transitions from dead ends
+- 20 transitions from various other locations
+
+This diverse minibatch teaches the network about the **entire** state space simultaneously, leading to much more stable and efficient learning.
+
+## Ablation Study: The Impact of Replay
+
+The original DQN paper (Mnih et al., 2015) showed dramatic differences with and without experience replay:
+
+| Game | With Replay + Target Q | With Replay, No Target Q | No Replay, Target Q | No Replay, No Target Q |
+|---|---|---|---|---|
+| Breakout | **316.8** | 240.7 | 10.2 | 3.2 |
+| Enduro | **1006.3** | 831.4 | 141.9 | 29.1 |
+| River Raid | **7446.6** | 4102.8 | 2867.7 | 1453.0 |
+| Seaquest | **2894.4** | 822.6 | 1003.0 | 275.8 |
+| Space Invaders | **1088.9** | 826.3 | 373.2 | 302.0 |
+
+**Key observations:**
+- Removing replay causes massive performance drops (compare columns 1 and 3)
+- Replay has an even larger impact than the target network in most games
+- The combination of both replay and target network gives the best results
+
+## Key Takeaway
+
+> Experience replay stores transitions in a buffer and samples random minibatches for training. This breaks the correlation between consecutive samples, improves data efficiency (each experience is reused multiple times), and stabilizes the training distribution. It is one of the two pillars that make DQN work -- the other being the target network.
+
+Unlocking the **GENERALIZATION_MODULE** gives your robot the ability to store and recall past experiences, enabling it to learn from diverse memories rather than just the present moment.

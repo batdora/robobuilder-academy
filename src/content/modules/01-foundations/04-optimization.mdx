@@ -1,0 +1,120 @@
+---
+title: "Optimization & Gradient Descent"
+lessonId: "foundations-04-optimization"
+moduleId: "01-foundations"
+order: 4
+xpReward: 150
+robotPart: "METABOLISM"
+requiresParts: ["CHASSIS", "BRAIN"]
+journalEntry: "ENERGY SYSTEMS CALIBRATING. Learning to minimize waste. Every step downhill counts."
+---
+
+# Optimization & Gradient Descent
+
+A neural network with random weights is useless. **Optimization** is the process of finding weights that minimize prediction error. It is how a robot learns.
+
+## Loss Functions
+
+A **loss function** $J(\theta)$ measures how wrong the model's predictions are.
+
+**Mean Squared Error** (regression):
+
+$$
+J(\theta) = \frac{1}{N} \sum_{i=1}^{N} (y_i - \hat{y}_i)^2
+$$
+
+**Cross-Entropy Loss** (classification):
+
+$$
+J(\theta) = -\frac{1}{N} \sum_{i=1}^{N} \left[ y_i \log \hat{y}_i + (1 - y_i) \log(1 - \hat{y}_i) \right]
+$$
+
+The goal: find $\theta^* = \arg\min_\theta J(\theta)$.
+
+## Gradient Descent
+
+The gradient $\nabla_\theta J(\theta)$ points in the direction of steepest **increase**. We move in the opposite direction:
+
+$$
+\theta \leftarrow \theta - \alpha \nabla_\theta J(\theta)
+$$
+
+where $\alpha$ is the **learning rate** — the step size.
+
+## Learning Rate Intuition
+
+The learning rate is the most important hyperparameter:
+
+| $\alpha$ | Behavior |
+|-----------|----------|
+| Too small | Converges very slowly, may get stuck |
+| Too large | Overshoots, diverges, loss explodes |
+| Just right | Smooth convergence to a good minimum |
+
+A typical starting point is $\alpha = 0.001$.
+
+## Variants of Gradient Descent
+
+**Batch Gradient Descent** — uses the entire dataset per update:
+
+$$
+\theta \leftarrow \theta - \alpha \frac{1}{N} \sum_{i=1}^{N} \nabla_\theta \ell_i(\theta)
+$$
+
+Stable gradients but slow for large datasets.
+
+**Stochastic Gradient Descent (SGD)** — uses one sample per update:
+
+$$
+\theta \leftarrow \theta - \alpha \nabla_\theta \ell_i(\theta)
+$$
+
+Fast but noisy. The noise can actually help escape local minima.
+
+**Mini-batch SGD** — uses a batch of $B$ samples (best of both worlds):
+
+$$
+\theta \leftarrow \theta - \alpha \frac{1}{B} \sum_{i=1}^{B} \nabla_\theta \ell_i(\theta)
+$$
+
+Typical batch sizes: 32, 64, 128, 256.
+
+## Momentum
+
+Standard SGD can oscillate in ravines. **Momentum** accumulates a velocity term:
+
+$$
+\mathbf{v}_t = \beta \mathbf{v}_{t-1} + \nabla_\theta J(\theta)
+$$
+
+$$
+\theta \leftarrow \theta - \alpha \mathbf{v}_t
+$$
+
+where $\beta \approx 0.9$. Think of it as a ball rolling downhill — it builds up speed in consistent directions and dampens oscillations.
+
+## Adam Optimizer
+
+**Adam** (Adaptive Moment Estimation) combines momentum with per-parameter adaptive learning rates:
+
+$$
+m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t
+$$
+
+$$
+v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2
+$$
+
+$$
+\theta \leftarrow \theta - \alpha \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
+$$
+
+where $\hat{m}_t$ and $\hat{v}_t$ are bias-corrected estimates. Default values: $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$.
+
+Adam is the **default choice** for most deep learning tasks because it adapts the learning rate for each parameter individually.
+
+## Key Takeaway
+
+> Optimization is how neural networks learn. Gradient descent follows the slope of the loss landscape, and modern optimizers like Adam make the journey faster and more stable.
+
+The **METABOLISM** is active. Your robot now has the energy system to learn from experience — converting errors into improvement, step by step.

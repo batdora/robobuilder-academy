@@ -1,0 +1,214 @@
+---
+title: "Natural Policy Gradient"
+lessonId: "pg-06-natural-pg"
+moduleId: "04-policy-optimization"
+order: 6
+xpReward: 250
+requiresParts: ["MOTOR_CORTEX"]
+---
+
+# Natural Policy Gradient
+
+Vanilla policy gradient uses the standard gradient $\nabla_\theta J(\theta)$, which moves in the direction of steepest ascent in **parameter space**. But parameter space and **policy space** are different: a small change in $\theta$ might cause a huge change in policy behavior, or vice versa. The **Natural Policy Gradient** fixes this by taking the steepest ascent in **policy distribution space**.
+
+## The Problem with Vanilla Gradients
+
+### Step Size Sensitivity in RL vs Supervised Learning
+
+As highlighted by Pieter Abbeel, step sizes matter much more in RL than in supervised learning:
+
+**Supervised learning:** If you step too far, the next update will correct for it. The dataset is fixed and does not change based on your parameters.
+
+**Reinforcement learning:** If you step too far, you get a **terrible policy**. The next mini-batch is collected under this terrible policy! You collect bad data, which leads to worse updates, leading to even worse data. Recovery is difficult -- you may need to go back and shrink the step size.
+
+This is why we need to be very careful about how far we step in policy space.
+
+### Gradient is Only a First-Order Approximation
+
+The gradient $\nabla_\theta J(\theta)$ is a local linear approximation. It is only accurate for small steps. But how small is "small"? In parameter space, a step of size $\epsilon$ might:
+
+- Change the policy drastically (if parameters are very sensitive in that region)
+- Barely change the policy at all (if parameters are in a flat region)
+
+We need a step-size criterion that relates to the actual change in **policy behavior**.
+
+## Measuring Policy Change: KL Divergence
+
+To measure how much the policy changes, we use the **KL divergence** between the old and new policy:
+
+$$
+D_{KL}(\pi_\theta \| \pi_{\theta + \delta\theta}) = \sum_s d^\pi(s) \sum_a \pi_\theta(a|s) \log \frac{\pi_\theta(a|s)}{\pi_{\theta+\delta\theta}(a|s)}
+$$
+
+where $d^\pi(s)$ is the state visitation distribution under $\pi$.
+
+### Evaluating KL Divergence Over Trajectories
+
+Recall:
+
+$$
+P(\tau; \theta) = P(s_0) \prod_{t=0}^{H-1} \pi_\theta(u_t | s_t) P(s_{t+1} | s_t, u_t)
+$$
+
+The KL divergence between trajectory distributions:
+
+$$
+KL(P(\tau;\theta) \| P(\tau;\theta+\delta\theta)) = \sum_\tau P(\tau;\theta) \log \frac{P(\tau;\theta)}{P(\tau;\theta+\delta\theta)}
+$$
+
+Substituting the trajectory probability:
+
+$$
+= \sum_\tau P(\tau;\theta) \log \frac{P(s_0)\prod_{t=0}^{H-1}\pi_\theta(u_t|s_t)P(s_{t+1}|s_t,u_t)}{P(s_0)\prod_{t=0}^{H-1}\pi_{\theta+\delta\theta}(u_t|s_t)P(s_{t+1}|s_t,u_t)}
+$$
+
+**The dynamics cancel out!** $P(s_0)$ cancels, and $P(s_{t+1}|s_t,u_t)$ cancels:
+
+$$
+= \sum_\tau P(\tau;\theta) \log \frac{\prod_{t=0}^{H-1}\pi_\theta(u_t|s_t)}{\prod_{t=0}^{H-1}\pi_{\theta+\delta\theta}(u_t|s_t)}
+$$
+
+$$
+\approx \frac{1}{M}\sum_{(s,u) \in \text{rollouts}} \log\frac{\pi_\theta(u|s)}{\pi_{\theta+\delta\theta}(u|s)}
+$$
+
+This is model-free and can be estimated from samples.
+
+## The Fisher Information Matrix
+
+For small $\delta\theta$, the KL divergence can be approximated using a second-order Taylor expansion:
+
+$$
+D_{KL}(\pi_\theta \| \pi_{\theta+\delta\theta}) \approx \frac{1}{2}\delta\theta^\top F(\theta) \delta\theta
+$$
+
+where $F(\theta)$ is the **Fisher Information Matrix (FIM)**:
+
+$$
+F(\theta) = \mathbb{E}_{\pi_\theta}\left[\nabla_\theta \log \pi_\theta(a|s) \nabla_\theta \log \pi_\theta(a|s)^\top\right]
+$$
+
+The FIM captures the **local curvature of the policy distribution**. It tells us how sensitive the policy distribution is to changes in each direction of parameter space.
+
+**Properties of the FIM:**
+- Symmetric and positive semi-definite
+- Independent of the reward function (it only depends on the policy)
+- Defines a **Riemannian metric** on the parameter space
+
+## The Natural Gradient
+
+### Standard Gradient Descent
+
+Standard gradient ascent solves:
+
+$$
+\max_{\delta\theta} \; \nabla_\theta J(\theta)^\top \delta\theta \quad \text{subject to} \quad \|\delta\theta\|_2^2 \leq \epsilon
+$$
+
+Solution: $\delta\theta \propto \nabla_\theta J(\theta)$ (step in the Euclidean gradient direction)
+
+### Natural Gradient Descent
+
+Natural gradient ascent instead constrains the change in **policy space** (KL divergence):
+
+$$
+\max_{\delta\theta} \; \nabla_\theta J(\theta)^\top \delta\theta \quad \text{subject to} \quad \frac{1}{2}\delta\theta^\top F(\theta) \delta\theta \leq \epsilon
+$$
+
+Solution (using Lagrange multipliers):
+
+$$
+\delta\theta \propto F(\theta)^{-1} \nabla_\theta J(\theta)
+$$
+
+This is the **natural gradient**: the standard gradient pre-multiplied by the inverse Fisher Information Matrix.
+
+### Why the Natural Gradient is Better
+
+The natural gradient accounts for the geometry of the policy distribution:
+
+1. **Parameterization invariant:** If you reparameterize the policy (e.g., going from $\theta$ to $\psi = g(\theta)$), the standard gradient changes, but the natural gradient gives the same update in policy space.
+
+2. **Appropriate step sizes:** In directions where small parameter changes cause large policy changes, the FIM is large, so $F^{-1}$ shrinks the step. In directions where large parameter changes barely affect the policy, the FIM is small, so $F^{-1}$ enlarges the step.
+
+3. **Better conditioning:** Neural network loss landscapes are often ill-conditioned. The natural gradient implicitly preconditions the optimization.
+
+## Computing the Natural Gradient
+
+The main challenge is computing $F^{-1}g$ where $g = \nabla_\theta J(\theta)$.
+
+### Direct Computation
+
+For a policy with $n$ parameters, $F$ is an $n \times n$ matrix. Inverting it costs $O(n^3)$, which is prohibitive for neural networks with millions of parameters.
+
+### Conjugate Gradient Method
+
+Instead of computing $F^{-1}$ explicitly, we can solve $Fx = g$ for $x = F^{-1}g$ using the **conjugate gradient (CG)** method. CG only requires computing **matrix-vector products** $Fv$, which can be done efficiently:
+
+$$
+Fv = \mathbb{E}\left[\nabla_\theta \log \pi_\theta(a|s) \left(\nabla_\theta \log \pi_\theta(a|s)^\top v\right)\right]
+$$
+
+This is called a **Fisher-vector product** and can be computed using automatic differentiation without ever forming the full matrix $F$.
+
+## Monotonic Improvement Theory
+
+A key theoretical result (Kakade & Langford, 2002; Schulman et al., 2015) provides conditions for **guaranteed policy improvement**:
+
+$$
+J(\pi_{\text{new}}) \geq J(\pi_{\text{old}}) + \mathbb{E}_{s \sim d^{\pi_{\text{old}}}}\left[\mathbb{E}_{a \sim \pi_{\text{new}}}\left[A^{\pi_{\text{old}}}(s, a)\right]\right] - C \cdot D_{KL}^{\max}(\pi_{\text{old}} \| \pi_{\text{new}})
+$$
+
+where $C$ is a constant depending on the discount factor and reward bounds, and $D_{KL}^{\max}$ is the maximum KL divergence over all states.
+
+**Interpretation:** The new policy is guaranteed to be at least as good as the old policy, as long as:
+1. The expected advantage under the new policy is positive (we choose better actions)
+2. The KL divergence penalty is small (we don't change too much)
+
+This is the theoretical foundation for TRPO (next lesson).
+
+## Step Sizing Approaches
+
+Given the natural gradient direction $\tilde{g} = F^{-1}g$, how do we choose the step size?
+
+### Line Search
+
+Simple but expensive: try different step sizes $\alpha$ along $\tilde{g}$ and evaluate each:
+
+$$
+\theta_{\text{new}} = \theta + \alpha \tilde{g}
+$$
+
+Pick the $\alpha$ that gives the best improvement. Requires multiple evaluations.
+
+### Trust Region
+
+Directly constrain the KL divergence:
+
+$$
+\alpha = \sqrt{\frac{2\epsilon}{\tilde{g}^\top F \tilde{g}}}
+$$
+
+where $\epsilon$ is the maximum allowed KL divergence. This gives the largest step in the natural gradient direction that stays within the trust region.
+
+## Worked Example: Natural vs Standard Gradient
+
+**Setup:** 2D parameter space. $\nabla_\theta J = [1, 1]^\top$. Fisher Information Matrix:
+
+$$
+F = \begin{bmatrix} 100 & 0 \\ 0 & 1 \end{bmatrix}
+$$
+
+**Standard gradient step:** $\delta\theta \propto [1, 1]$ -- equal step in both dimensions.
+
+**Natural gradient step:**
+
+$$
+\delta\theta \propto F^{-1}\nabla_\theta J = \begin{bmatrix} 1/100 & 0 \\ 0 & 1 \end{bmatrix}\begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} 0.01 \\ 1 \end{bmatrix}
+$$
+
+The natural gradient takes a tiny step in dimension 1 (where the policy is very sensitive, $F_{11} = 100$) and a full step in dimension 2 (where the policy is less sensitive, $F_{22} = 1$). This prevents catastrophic policy changes in sensitive directions.
+
+## Key Takeaway
+
+> The **Natural Policy Gradient** replaces the standard gradient with $F^{-1}\nabla_\theta J(\theta)$, where $F$ is the Fisher Information Matrix. This ensures that each update causes a controlled change in the policy distribution (measured by KL divergence) rather than in raw parameter space. The natural gradient is parameterization-invariant and leads to more stable optimization. Combined with the monotonic improvement theory, it sets the stage for TRPO.

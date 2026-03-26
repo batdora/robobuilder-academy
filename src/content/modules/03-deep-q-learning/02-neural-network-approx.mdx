@@ -1,0 +1,195 @@
+---
+title: "Neural Network Q-Approximation"
+lessonId: "dqn-02-nn-approx"
+moduleId: "03-deep-q-learning"
+order: 2
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP"]
+---
+
+# Neural Network Q-Approximation
+
+Linear function approximation requires hand-crafted features and cannot capture complex, nonlinear relationships. Neural networks solve both problems -- they learn features automatically and can approximate arbitrarily complex functions. But using them for Q-learning introduces serious instability issues.
+
+## From Linear to Neural Network Approximation
+
+### Limitations of Linear Approximation
+
+With linear approximation, $Q_\theta(s,a) = \boldsymbol{\theta}^\top \boldsymbol{f}(s,a)$, the quality of learning depends entirely on how good your features $\boldsymbol{f}$ are. Designing good features requires domain expertise and is problem-specific.
+
+### Neural Networks as Universal Approximators
+
+A neural network can learn its own features. Given raw state input (e.g., pixels), it extracts hierarchical representations:
+
+- **Layer 1:** Low-level features (edges, colors)
+- **Layer 2:** Mid-level features (shapes, textures)
+- **Layer 3:** High-level features (objects, positions)
+- **Output:** Q-values for each action
+
+### Two Network Architectures
+
+**Lin's Architecture (1993):**
+- Separate network for each action
+- Input: state $s$, Output: $Q(a_i, s)$ for one specific action
+- No parameter sharing between actions
+- Requires $|A|$ forward passes to evaluate all actions
+
+**DQN Architecture:**
+- Single shared network for all actions
+- Input: state $s$, Output: $Q(a_1, s), Q(a_2, s), \ldots, Q(a_{|A|}, s)$ simultaneously
+- Parameters are shared across actions
+- Only **one** forward pass needed to get all Q-values
+
+The DQN architecture is far more efficient because shared lower layers learn general state representations useful for all actions.
+
+## Neural Fitted Q Iteration (NFQ)
+
+Before DQN, **Neural Fitted Q Iteration** (Riedmiller, 2005) established the idea of training neural networks with Q-learning.
+
+### The NFQ Algorithm
+
+NFQ alternates between collecting data and fitting the Q-function to **all** previous experience with batch gradient descent:
+
+```
+NFQ_main():
+  Input: set of transition samples D
+  Output: Q-value function Q_N
+  k = 0
+  Initialize MLP -> Q_0
+  Do {
+    Generate pattern set P = {(input^l, target^l), l=1,...,#D}
+      where:
+        input^l = (s^l, u^l)
+        target^l = c(s^l, u^l, s'^l) + gamma * min_b Q_k(s'^l, b)
+    Rprop_training(P) -> Q_{k+1}
+    k = k + 1
+  } While (k < N)
+```
+
+**Key idea:** DQN can be seen as an **online variant** of NFQ. Where NFQ retrains on the full dataset each iteration, DQN uses minibatch updates from a replay buffer.
+
+## The Loss Function for Neural Network Q-Learning
+
+### Defining the Loss
+
+We want our network $Q_\theta(s,a)$ to match the target values. The loss function is:
+
+$$
+L(\theta) = \mathbb{E}_{s,a,s',r \sim D} \left[ \Big( Q_\theta(s,a) - \text{target}(s') \Big)^2 \right]
+$$
+
+where the target is:
+
+$$
+\text{target}(s') = R(s,a,s') + \gamma \max_{a'} Q_{\theta_k}(s',a')
+$$
+
+### Gradient Computation
+
+The gradient of the loss with respect to the network parameters:
+
+$$
+\nabla_\theta L(\theta) = \mathbb{E}_{s,a,s',r \sim D} \left[ 2 \Big( Q_\theta(s,a) - \text{target}(s') \Big) \cdot \nabla_\theta Q_\theta(s,a) \right]
+$$
+
+The update rule:
+
+$$
+\theta_{k+1} \leftarrow \theta_k - \alpha \nabla_\theta \mathbb{E}_{s' \sim P(s'|s,a)} \left[ \Big( Q_\theta(s,a) - \text{target}(s') \Big)^2 \right] \Bigg|_{\theta = \theta_k}
+$$
+
+**Critical:** We do NOT differentiate through $\text{target}(s')$. Even though the target depends on $\theta_k$, we treat it as a **constant** during gradient computation. This is the semi-gradient method.
+
+## Two Critical Instability Problems
+
+When we naively apply neural network function approximation to Q-learning, two severe problems emerge:
+
+### Problem 1: Correlated Samples
+
+In online Q-learning, consecutive samples $(s_t, a_t, r_t, s_{t+1})$ come from the **same trajectory**. These samples are highly correlated:
+
+- If the agent is in a hallway, successive states are all hallway states
+- The network receives a biased stream of very similar training examples
+- This violates the i.i.d. (independent and identically distributed) assumption of supervised learning
+- Gradient descent on correlated data can lead to catastrophic oscillation or divergence
+
+**Why this is bad:** Neural networks trained with SGD assume that minibatch samples are approximately independent. Correlated training data causes the network to overfit to recent experiences and forget earlier ones.
+
+### Problem 2: Non-Stationary Target (Moving Target)
+
+The target $\text{target}(s') = r + \gamma \max_{a'} Q_{\theta_k}(s',a')$ depends on the **same parameters** we are updating.
+
+When we update $\theta$ to make $Q_\theta(s,a)$ closer to the target:
+- The target itself shifts (because it uses $Q_{\theta_k}$)
+- We are "chasing a nonstationary target"
+- The network can end up "chasing its own tail" due to bootstrapping
+- This creates a feedback loop that can amplify errors
+
+**Analogy:** Imagine trying to reach a goalpost that moves every time you take a step toward it. You might oscillate or spiral outward.
+
+### Why These Problems Are Worse with Neural Networks
+
+In tabular Q-learning, updating $Q(s,a)$ only changes the value for that specific $(s,a)$ pair. With a neural network:
+
+- Changing the value for one action **changes the values for other actions and similar states** (because parameters are shared)
+- A single gradient update ripples through the entire function
+- Bigger networks are somewhat less prone to this because they "alias" less (different states map to different internal representations)
+
+## The Approximate Q-Learning Algorithm (with Instabilities)
+
+Here is what the algorithm looks like when we naively combine neural networks with Q-learning -- note the two instability sources:
+
+```
+Algorithm: Approximate Q-Learning (Naive)
+  Start with Q_theta_0(s, a) for all s, a
+  Get initial state s
+  For k = 1, 2, ... till convergence:
+    Sample action a, get next state s'
+    If s' is terminal:
+      target = R(s, a, s')              <-- Chasing a nonstationary target!
+    Else:
+      target = R(s, a, s') + gamma * max_a' Q_theta_k(s', a')
+    theta_{k+1} <- theta_k - alpha * grad_theta [...] |_{theta = theta_k}
+    s <- s'                              <-- Updates are correlated within a trajectory!
+```
+
+Both annotations in red highlight why this naive approach often fails in practice.
+
+## The Path Forward: Making Q-Learning Look Like Supervised Learning
+
+The high-level idea behind DQN is to **make Q-learning look like supervised learning**:
+
+| Supervised Learning | Q-Learning (Goal) |
+|---|---|
+| i.i.d. samples from dataset | Break correlations with **experience replay** |
+| Fixed targets (labels) | Stabilize targets with **target network** |
+| Minimize loss via SGD | Minimize Bellman error via SGD |
+
+These two innovations -- experience replay and target networks -- are the key contributions of DQN, which we will study in detail in the next lessons.
+
+## Worked Example: One Step of Neural Network Q-Update
+
+Suppose we have a simple neural network $Q_\theta$ and observe the transition $(s, a, r, s') = (\text{state}_7, \text{left}, +1, \text{state}_3)$ with $\gamma = 0.99$.
+
+**Step 1:** Forward pass to compute current Q-values.
+- $Q_\theta(\text{state}_7, \text{left}) = 2.5$
+
+**Step 2:** Compute target value (forward pass on next state).
+- $Q_\theta(\text{state}_3, \text{up}) = 3.0$, $Q_\theta(\text{state}_3, \text{down}) = 4.2$, $Q_\theta(\text{state}_3, \text{left}) = 1.1$
+- $\max_{a'} Q_\theta(\text{state}_3, a') = 4.2$
+- $\text{target} = 1 + 0.99 \times 4.2 = 5.158$
+
+**Step 3:** Compute TD error.
+- $\delta = \text{target} - Q_\theta(\text{state}_7, \text{left}) = 5.158 - 2.5 = 2.658$
+
+**Step 4:** Compute loss.
+- $L = \frac{1}{2}(2.658)^2 = 3.532$
+
+**Step 5:** Backpropagate and update $\theta$.
+- $\theta \leftarrow \theta - \alpha \cdot \delta \cdot \nabla_\theta Q_\theta(\text{state}_7, \text{left})$
+
+The update pushes $Q_\theta(\text{state}_7, \text{left})$ closer to 5.158, but also changes Q-values for other states due to parameter sharing.
+
+## Key Takeaway
+
+> Neural networks are powerful function approximators that can learn features automatically from raw input (like pixels). However, naive application to Q-learning fails because of correlated sequential samples and a moving target. The next lessons introduce experience replay and target networks -- the two critical innovations that make Deep Q-Networks work.

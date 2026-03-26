@@ -1,0 +1,140 @@
+---
+title: "Graph Neural Networks: Graph Basics"
+lessonId: "advanced-arch-07-graph-basics"
+moduleId: "05-advanced-architectures"
+order: 7
+xpReward: 175
+isBonus: true
+requiresParts: []
+journalEntry: "RELATIONAL SENSORS BOOTING. The world is not a grid -- it is a web of connections."
+---
+
+# Graph Neural Networks: Graph Basics
+
+Many real-world data structures are not grids (images) or sequences (text) -- they are **graphs**. Social networks, molecules, robot joint structures, and scene representations are all naturally described as graphs. **Graph Neural Networks (GNNs)** extend deep learning to graph-structured data.
+
+## What is a Graph?
+
+A graph $G = (V, E)$ consists of:
+- **Nodes (vertices)** $V = \{v_1, v_2, \ldots, v_n\}$ -- entities
+- **Edges** $E \subseteq V \times V$ -- relationships between entities
+
+Each node $v$ can have a **feature vector** $\mathbf{x}_v \in \mathbb{R}^d$.
+
+Each edge $(u, v)$ can have a **feature vector** $\mathbf{e}_{uv} \in \mathbb{R}^{d_e}$.
+
+## Graph Representations
+
+### Adjacency Matrix
+
+The **adjacency matrix** $\mathbf{A} \in \{0, 1\}^{n \times n}$ encodes the graph structure:
+
+$$
+A_{ij} = \begin{cases} 1 & \text{if } (v_i, v_j) \in E \\ 0 & \text{otherwise} \end{cases}
+$$
+
+For **undirected** graphs, $\mathbf{A}$ is symmetric: $A_{ij} = A_{ji}$.
+
+For **weighted** graphs, $A_{ij}$ can take real values representing edge weights.
+
+### Node Feature Matrix
+
+The **feature matrix** $\mathbf{X} \in \mathbb{R}^{n \times d}$ stacks all node features:
+
+$$
+\mathbf{X} = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots \\ \mathbf{x}_n^T \end{bmatrix}
+$$
+
+### Degree Matrix
+
+The **degree matrix** $\mathbf{D}$ is diagonal, where $D_{ii} = \sum_j A_{ij}$ is the degree of node $i$ (number of neighbors).
+
+### Neighborhood
+
+The **neighborhood** of node $v$ is:
+
+$$
+\mathcal{N}(v) = \{u \in V : (v, u) \in E\}
+$$
+
+## Types of Graphs
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Undirected** | Edges have no direction | Friendship network |
+| **Directed** | Edges have direction | Web links, citation network |
+| **Weighted** | Edges have associated weights | Distance between locations |
+| **Bipartite** | Two disjoint node sets | Users and products |
+| **Heterogeneous** | Multiple node/edge types | Knowledge graph |
+
+## Why Not Use Standard Neural Networks on Graphs?
+
+**Problem 1: Variable size.** Graphs have different numbers of nodes and edges -- you cannot fix the input dimension.
+
+**Problem 2: No canonical ordering.** Unlike pixels in an image, nodes in a graph have no natural order. A neural network on graphs must be **permutation invariant** (or equivariant) -- the output should not change if we reorder the nodes.
+
+**Problem 3: No grid structure.** Convolutions assume a regular grid (e.g., 3x3 patches). Graphs have irregular, varying-degree neighborhoods.
+
+## Tasks on Graphs
+
+GNNs can be applied at multiple levels:
+
+### Node-Level Tasks
+Predict a property for each node. Example: classifying users in a social network.
+
+$$
+\hat{y}_v = f(\mathbf{z}_v) \quad \text{for each } v \in V
+$$
+
+where $\mathbf{z}_v$ is the learned node embedding.
+
+### Edge-Level Tasks
+Predict a property for each edge or predict whether an edge exists. Example: link prediction (will two users become friends?).
+
+$$
+\hat{y}_{uv} = g(\mathbf{z}_u, \mathbf{z}_v) \quad \text{for each } (u, v)
+$$
+
+### Graph-Level Tasks
+Predict a property for the entire graph. Example: predicting whether a molecule is toxic.
+
+$$
+\hat{y}_G = h\left(\text{READOUT}\left(\{\mathbf{z}_v : v \in V\}\right)\right)
+$$
+
+The READOUT function aggregates all node embeddings into a single graph-level representation (e.g., mean, sum, or a learned pooling).
+
+## Node Embeddings: The Goal of GNNs
+
+The central idea of GNNs is to learn **node embeddings** $\mathbf{z}_v$ that encode both the node's features and its structural position in the graph.
+
+A good embedding should satisfy: **similar nodes have similar embeddings**.
+
+$$
+\text{similarity}(u, v) \approx \mathbf{z}_u^T \mathbf{z}_v
+$$
+
+## Worked Example: Adjacency Matrix
+
+Consider a triangle graph with 3 nodes (1, 2, 3) all connected to each other:
+
+$$
+\mathbf{A} = \begin{bmatrix} 0 & 1 & 1 \\ 1 & 0 & 1 \\ 1 & 1 & 0 \end{bmatrix}, \quad
+\mathbf{D} = \begin{bmatrix} 2 & 0 & 0 \\ 0 & 2 & 0 \\ 0 & 0 & 2 \end{bmatrix}
+$$
+
+Neighborhoods: $\mathcal{N}(1) = \{2, 3\}$, $\mathcal{N}(2) = \{1, 3\}$, $\mathcal{N}(3) = \{1, 2\}$.
+
+The diagonal of $\mathbf{A}$ is zero (no self-loops). Each node has degree 2.
+
+## Graphs in Robotics
+
+Graphs naturally arise in robotics:
+- **Robot kinematics:** Joints as nodes, links as edges
+- **Scene graphs:** Objects as nodes, spatial relations as edges
+- **Multi-robot systems:** Robots as nodes, communication links as edges
+- **Task planning:** States as nodes, actions as edges
+
+## Key Takeaway
+
+> Graphs represent relational data with nodes and edges. GNNs learn node embeddings that capture both features and structure, enabling predictions at node, edge, and graph levels. The irregular, permutation-invariant nature of graphs requires specialized architectures beyond standard CNNs and MLPs.

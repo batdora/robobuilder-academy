@@ -1,0 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+@import "nes.css/css/nes.min.css";
+
+@theme {
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-card: #0f3460;
+  --color-pixel-green: #00ff41;
+  --color-pixel-blue: #0095ff;
+  --color-pixel-gold: #ffd700;
+  --color-pixel-red: #ff0040;
+  --color-pixel-purple: #b347d9;
+  --color-text-primary: #ffffff;
+  --color-text-muted: #a0a0b0;
+
+  --font-heading: "Press Start 2P", cursive;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* Base styles */
+html {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  scrollbar-color: var(--color-pixel-blue) var(--color-bg-secondary);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* Pixel headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  line-height: 1.6;
+}
+
+h1 { font-size: 1.25rem; }
+h2 { font-size: 1rem; }
+h3 { font-size: 0.875rem; }
+
+code, pre {
+  font-family: var(--font-mono);
+}
+
+/* NES.css overrides for dark theme */
+.nes-container {
+  background-color: var(--color-bg-card) !important;
+  color: var(--color-text-primary) !important;
+  border-image-repeat: stretch !important;
+}
+
+.nes-container.is-dark {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.nes-container.is-dark.with-title > .title {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-pixel-green) !important;
+}
+
+.nes-btn {
+  font-family: var(--font-heading);
+  font-size: 0.625rem;
+}
+
+.nes-btn.is-primary {
+  background-color: var(--color-pixel-blue) !important;
+  color: white !important;
+}
+
+.nes-btn.is-success {
+  background-color: var(--color-pixel-green) !important;
+  color: #1a1a2e !important;
+}
+
+.nes-btn.is-warning {
+  background-color: var(--color-pixel-gold) !important;
+  color: #1a1a2e !important;
+}
+
+.nes-btn.is-error {
+  background-color: var(--color-pixel-red) !important;
+  color: white !important;
+}
+
+.nes-progress {
+  height: 24px !important;
+}
+
+/* KaTeX */
+.katex { font-size: 1.1em; }
+
+/* Skill tree */
+.react-flow__background {
+  background-color: var(--color-bg-primary) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-pixel-blue);
+  border-radius: 4px;
+}
+
+/* Pixel art glow animation */
+@keyframes pixel-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--color-pixel-green); }
+  50% { box-shadow: 0 0 20px var(--color-pixel-green), 0 0 40px var(--color-pixel-green); }
+}
+
+@keyframes pixel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pixel-glow {
+  animation: pixel-glow 2s ease-in-out infinite;
+}
+
+.animate-pixel-pulse {
+  animation: pixel-pulse 1.5s ease-in-out infinite;
+}
+
+/* XP pop animation */
+@keyframes xp-pop {
+  0% { transform: scale(0) translateY(0); opacity: 0; }
+  50% { transform: scale(1.3) translateY(-20px); opacity: 1; }
+  100% { transform: scale(1) translateY(-40px); opacity: 0; }
+}
+
+.animate-xp-pop {
+  animation: xp-pop 1s ease-out forwards;
+}

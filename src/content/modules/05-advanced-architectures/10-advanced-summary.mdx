@@ -1,0 +1,187 @@
+---
+title: "Advanced Architectures Summary"
+lessonId: "advanced-arch-10-advanced-summary"
+moduleId: "05-advanced-architectures"
+order: 10
+xpReward: 150
+isBonus: true
+requiresParts: []
+journalEntry: "ARCHITECTURE DATABASE COMPILED. From sequences to graphs, from recurrence to attention -- the building blocks of intelligence."
+---
+
+# Advanced Architectures Summary
+
+This module covered the evolution from recurrent networks to attention-based models and graph neural networks. Here we consolidate all key concepts, equations, and comparisons for exam preparation.
+
+## Part 1: Sequence Models
+
+### RNN Core Equations
+
+$$
+\mathbf{h}_t = \tanh(\mathbf{W}_{hh}\mathbf{h}_{t-1} + \mathbf{W}_{xh}\mathbf{x}_t + \mathbf{b}_h)
+$$
+
+- Trained with BPTT
+- Vanishing gradients: $\left\|\prod_{i=k+1}^{t} \frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}}\right\|$ shrinks exponentially
+- Gradient clipping for exploding gradients
+
+### LSTM Core Equations
+
+$$
+\mathbf{f}_t = \sigma(\mathbf{W}_f [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f) \quad \text{(forget gate)}
+$$
+
+$$
+\mathbf{i}_t = \sigma(\mathbf{W}_i [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_i) \quad \text{(input gate)}
+$$
+
+$$
+\tilde{\mathbf{c}}_t = \tanh(\mathbf{W}_c [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_c) \quad \text{(candidate)}
+$$
+
+$$
+\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t \quad \text{(cell update)}
+$$
+
+$$
+\mathbf{o}_t = \sigma(\mathbf{W}_o [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_o) \quad \text{(output gate)}
+$$
+
+$$
+\mathbf{h}_t = \mathbf{o}_t \odot \tanh(\mathbf{c}_t) \quad \text{(hidden state)}
+$$
+
+The cell state $\mathbf{c}_t$ is the gradient highway: $\frac{\partial \mathbf{c}_t}{\partial \mathbf{c}_{t-1}} = \mathbf{f}_t$.
+
+### GRU Core Equations
+
+$$
+\mathbf{r}_t = \sigma(\mathbf{W}_r [\mathbf{h}_{t-1}, \mathbf{x}_t]) \quad \text{(reset gate)}
+$$
+
+$$
+\mathbf{z}_t = \sigma(\mathbf{W}_z [\mathbf{h}_{t-1}, \mathbf{x}_t]) \quad \text{(update gate)}
+$$
+
+$$
+\tilde{\mathbf{h}}_t = \tanh(\mathbf{W}_h [\mathbf{r}_t \odot \mathbf{h}_{t-1}, \mathbf{x}_t]) \quad \text{(candidate)}
+$$
+
+$$
+\mathbf{h}_t = (1 - \mathbf{z}_t) \odot \mathbf{h}_{t-1} + \mathbf{z}_t \odot \tilde{\mathbf{h}}_t \quad \text{(update)}
+$$
+
+Two gates instead of three. Single state vector instead of separate $\mathbf{h}$ and $\mathbf{c}$.
+
+### Seq2Seq
+
+- **Encoder** compresses input to context vector $\mathbf{c} = \mathbf{h}_T^{\text{enc}}$
+- **Decoder** generates output conditioned on $\mathbf{c}$
+- **Teacher forcing** uses ground-truth inputs during training
+- **Beam search** with width $B$ for better decoding
+- **Bottleneck problem:** Single fixed-length $\mathbf{c}$ for entire sequence
+
+## Part 2: Attention and Transformers
+
+### Attention
+
+$$
+\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}
+$$
+
+| Scoring | Formula |
+|---------|---------|
+| Additive (Bahdanau) | $\mathbf{v}^T \tanh(\mathbf{W}_1\mathbf{h}^{\text{dec}} + \mathbf{W}_2\mathbf{h}^{\text{enc}})$ |
+| Dot-product | $(\mathbf{h}^{\text{dec}})^T \mathbf{h}^{\text{enc}}$ |
+| Scaled dot-product | $\frac{(\mathbf{h}^{\text{dec}})^T \mathbf{h}^{\text{enc}}}{\sqrt{d_k}}$ |
+| General (Luong) | $(\mathbf{h}^{\text{dec}})^T \mathbf{W}_a \mathbf{h}^{\text{enc}}$ |
+
+### Transformer Architecture
+
+**Self-attention:** Q, K, V all come from the same input sequence.
+
+**Multi-head attention:**
+
+$$
+\text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\mathbf{W}_O
+$$
+
+**Positional encoding:**
+
+$$
+\text{PE}(pos, 2i) = \sin\left(\frac{pos}{10000^{2i/d}}\right), \quad \text{PE}(pos, 2i+1) = \cos\left(\frac{pos}{10000^{2i/d}}\right)
+$$
+
+**Encoder block:** Self-attention + FFN, both with residual connections and LayerNorm.
+
+**Decoder block:** Masked self-attention + cross-attention + FFN.
+
+| Property | RNN | Transformer |
+|----------|-----|-------------|
+| Parallelism | Sequential ($O(T)$) | Fully parallel ($O(1)$) |
+| Max path length | $O(T)$ | $O(1)$ |
+| Computation | $O(T \cdot d^2)$ | $O(T^2 \cdot d)$ |
+
+### Transformer Variants
+
+| Model | Type | Attention | Pre-training | Best for |
+|-------|------|-----------|-------------|----------|
+| **BERT** | Encoder only | Bidirectional | MLM + NSP | Understanding |
+| **GPT** | Decoder only | Causal (left-to-right) | Next token | Generation |
+| **ViT** | Encoder only | Bidirectional on patches | Image classification | Vision |
+
+**ViT:** Image $\to$ patches ($N = HW/P^2$) $\to$ linear projection $\to$ add positional embeddings $\to$ Transformer encoder $\to$ CLS token for classification.
+
+## Part 3: Graph Neural Networks
+
+### Key Definitions
+
+- Graph: $G = (V, E)$ with adjacency matrix $\mathbf{A}$, degree matrix $\mathbf{D}$, feature matrix $\mathbf{X}$
+- Neighborhood: $\mathcal{N}(v) = \{u : (v,u) \in E\}$
+- Tasks: node-level, edge-level, graph-level
+
+### Message Passing Framework
+
+$$
+\mathbf{h}_v^{(l)} = \text{UPDATE}\left(\mathbf{h}_v^{(l-1)}, \text{AGGREGATE}\left(\left\{\mathbf{h}_u^{(l-1)} : u \in \mathcal{N}(v)\right\}\right)\right)
+$$
+
+### GNN Architectures
+
+| | GCN | GraphSAGE | GAT |
+|---|-----|-----------|-----|
+| Aggregation | Normalized mean | Configurable + concat | Attention-weighted |
+| Key equation | $\sigma(\tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}HW)$ | $\sigma(W \cdot [h_v \| \text{AGG}(h_{\mathcal{N}})])$ | $\sigma(\sum \alpha_{vu} W h_u)$ |
+| Scalability | Full batch | Sampling | Full/sampling |
+| Inductive? | Yes | Yes (designed for it) | Yes |
+
+### Training and Applications
+
+**Supervised (node classification):**
+
+$$
+\mathcal{L} = -\sum_{v} \left[y_v \log(\sigma(\mathbf{z}_v^T\boldsymbol{\theta})) + (1-y_v)\log(1 - \sigma(\mathbf{z}_v^T\boldsymbol{\theta}))\right]
+$$
+
+**Over-smoothing:** Deep GNNs cause all embeddings to converge. Keep 2-3 layers.
+
+**Inductive capability:** Shared parameters $\to$ generalize to unseen nodes and new graphs.
+
+**Robotics applications:** Scene graphs, manipulation planning, multi-robot coordination, kinematics.
+
+## Exam Preparation Checklist
+
+- [ ] Can you write all LSTM gate equations from memory?
+- [ ] Can you explain why LSTMs solve vanishing gradients but vanilla RNNs cannot?
+- [ ] Can you describe the difference between additive and scaled dot-product attention?
+- [ ] Can you explain why Transformers need positional encoding?
+- [ ] Can you compute a self-attention output given Q, K, V matrices?
+- [ ] Can you explain the difference between BERT and GPT architectures?
+- [ ] Can you compute how many patches ViT creates from a given image?
+- [ ] Can you write the GCN update equation in matrix form?
+- [ ] Can you explain the difference between GCN, GraphSAGE, and GAT?
+- [ ] Can you explain why GNNs can generalize to unseen nodes?
+
+## Key Takeaway
+
+> This module traced the arc from sequential processing (RNNs) through selective memory (LSTM/GRU) and dynamic focus (attention) to fully parallel architectures (Transformers) and relational reasoning (GNNs). Each innovation addressed a concrete limitation of its predecessor, and together they form the toolkit for modern AI in robotics.

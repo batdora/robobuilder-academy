@@ -1,0 +1,200 @@
+---
+title: "Dueling DQN Architecture"
+lessonId: "dqn-07-dueling-dqn"
+moduleId: "03-deep-q-learning"
+order: 7
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "EYES", "GENERALIZATION_MODULE", "VISUAL_CORTEX"]
+---
+
+# Dueling DQN Architecture
+
+Dueling DQN introduces an architectural innovation: instead of estimating Q-values directly, the network separately estimates the **state value** $V(s)$ and the **advantage** $A(s,a)$ of each action, then combines them. This decomposition allows the network to learn which states are valuable without having to learn the effect of every action in every state.
+
+## The Value-Advantage Decomposition
+
+### Q-Value Decomposition
+
+Recall that the Q-value can be decomposed into two components:
+
+$$
+Q^\pi(s,a) = V^\pi(s) + A^\pi(s,a)
+$$
+
+where:
+
+- $V^\pi(s) = \mathbb{E}\left[\sum_t \gamma^t r_t \mid s_t = s, \pi\right]$ is the **state value** -- how good is it to be in state $s$?
+- $A^\pi(s,a) = Q^\pi(s,a) - V^\pi(s)$ is the **advantage** -- how much better is action $a$ compared to the average action in state $s$?
+
+### Properties of the Advantage Function
+
+The advantage has a key property:
+
+$$
+\sum_a \pi(a|s) A^\pi(s,a) = 0
+$$
+
+Under the optimal policy (which is deterministic):
+
+$$
+A^*(s, a^*) = 0 \quad \text{for the best action } a^*
+$$
+$$
+A^*(s, a) \leq 0 \quad \text{for all other actions}
+$$
+
+### Why This Decomposition is Useful
+
+**Question the advantage answers:** "Was this action better than the average action in this state?"
+
+- If $A(s,a) > 0$: action $a$ is **better** than average in state $s$
+- If $A(s,a) < 0$: action $a$ is **worse** than average in state $s$
+- If $A(s,a) = 0$: action $a$ is exactly the best action (under optimal policy)
+
+By separating $V(s)$ and $A(s,a)$:
+- The network can learn $V(s)$ from **any** experience in state $s$ (regardless of which action was taken)
+- It only needs to learn $A(s,a)$ for the actions that actually matter
+- In many states, the choice of action does not matter much (e.g., walking in an empty corridor) -- learning $V(s)$ alone is sufficient
+
+## The Dueling Architecture
+
+### Network Structure
+
+**Standard DQN architecture:**
+```
+State -> [Conv layers] -> [FC layers] -> Q(s, a_1), Q(s, a_2), ..., Q(s, a_n)
+```
+
+**Dueling DQN architecture:**
+```
+State -> [Conv layers] -> [shared features]
+                              |
+                    +---------+---------+
+                    |                   |
+              [FC layers]         [FC layers]
+                    |                   |
+                  V(s)          A(s, a_1), ..., A(s, a_n)
+                    |                   |
+                    +---------+---------+
+                              |
+                     Q(s, a_1), ..., Q(s, a_n)
+```
+
+The network splits into two **streams** after the shared convolutional layers:
+1. **Value stream:** Outputs a single scalar $V(s)$
+2. **Advantage stream:** Outputs one value $A(s,a_i)$ per action
+
+### The Combination Formula
+
+A naive combination would be:
+
+$$
+Q(s,a) = V(s) + A(s,a) \quad \text{(WRONG -- not identifiable)}
+$$
+
+The problem is **identifiability**: given $Q(s,a)$, we cannot uniquely recover $V(s)$ and $A(s,a)$. Adding a constant to $V$ and subtracting it from $A$ gives the same $Q$.
+
+### The Mean-Centering Trick
+
+Dueling DQN (Wang et al., 2016) solves identifiability by subtracting the mean advantage:
+
+$$
+Q(s,a) = V(s) + A(s,a) - \frac{1}{|\mathcal{A}|} \sum_{a'} A(s,a')
+$$
+
+This ensures that:
+- The mean advantage is always zero: $\frac{1}{|\mathcal{A}|}\sum_a A(s,a) = 0$ after the subtraction
+- $V(s)$ is forced to represent the true average value of the state
+- The decomposition is unique (identifiable)
+
+**Alternative:** Some implementations use $\max_a$ instead of mean:
+
+$$
+Q(s,a) = V(s) + A(s,a) - \max_{a'} A(s,a')
+$$
+
+This ensures $V(s) = \max_a Q(s,a)$, but the mean version is more stable in practice and is the one used by Wang et al.
+
+## Why the Dueling Architecture Helps
+
+### Learning Efficiency
+
+In many states, the action choice barely matters:
+- In Pong, if the ball is far away, it does not matter whether you move up or down
+- In a corridor with no enemies, left/right is irrelevant
+- The value $V(s)$ can be learned from **all** experiences in that state
+
+Standard DQN must learn separate Q-values for each action, even when they are all similar. Dueling DQN can efficiently represent "all actions are equally good here" by learning $V(s)$ with $A(s,a) \approx 0$ for all $a$.
+
+### Advantage in States with Many Actions
+
+When $|\mathcal{A}|$ is large, learning accurate Q-values for all actions is hard. The dueling architecture:
+- Learns $V(s)$ from all data (efficient)
+- Only needs to learn the **relative** differences between actions (advantages)
+- Better data efficiency, especially with many actions
+
+## Atari Results
+
+### Performance Comparison (Wang et al., 2016)
+
+| Architecture | 30 No-Ops (Mean) | 30 No-Ops (Median) | Human Starts (Mean) | Human Starts (Median) |
+|---|---|---|---|---|
+| Nature DQN | 227.9% | 79.1% | 219.6% | 68.5% |
+| Single Stream | 307.3% | 117.8% | 332.9% | 110.9% |
+| Single Clip | 341.2% | 132.6% | 302.8% | 114.1% |
+| Duel Clip | **373.1%** | **151.5%** | **343.8%** | **117.1%** |
+| Prior. Single | 434.6% | 123.7% | 386.7% | 112.9% |
+| Prior. Duel Clip | **591.9%** | **172.1%** | **567.0%** | **115.3%** |
+
+(Percentages relative to human performance)
+
+**Key observations:**
+- Dueling consistently outperforms the single-stream baseline
+- Combining dueling with prioritized replay gives the best results
+- The improvement is especially large on games with many actions
+
+## Worked Example: Dueling Decomposition
+
+Suppose we have a game state with 4 possible actions.
+
+**Standard DQN output:**
+
+$$
+Q(s, a_1) = 7.2, \quad Q(s, a_2) = 7.5, \quad Q(s, a_3) = 6.8, \quad Q(s, a_4) = 7.0
+$$
+
+**Dueling DQN decomposition:**
+
+Value stream: $V(s) = 7.125$ (average of all Q-values)
+
+Advantage stream (before centering):
+$A'(s, a_1) = 0.2, \quad A'(s, a_2) = 0.8, \quad A'(s, a_3) = -0.5, \quad A'(s, a_4) = 0.0$
+
+Mean of advantages: $\bar{A} = \frac{0.2 + 0.8 + (-0.5) + 0.0}{4} = 0.125$
+
+Centered advantages:
+$A(s, a_1) = 0.075, \quad A(s, a_2) = 0.675, \quad A(s, a_3) = -0.625, \quad A(s, a_4) = -0.125$
+
+Final Q-values:
+$Q(s, a_i) = V(s) + A(s, a_i) = 7.125 + A(s, a_i)$
+
+$$
+Q(s, a_1) = 7.2, \quad Q(s, a_2) = 7.8, \quad Q(s, a_3) = 6.5, \quad Q(s, a_4) = 7.0
+$$
+
+The advantage of this decomposition: if we visit state $s$ but take action $a_1$, we still improve our estimate of $V(s)$, which benefits our understanding of **all** actions in that state.
+
+## Combining with Other Improvements
+
+Dueling DQN is an **architectural** change, orthogonal to algorithmic changes:
+- **Dueling + Double DQN:** Use dueling architecture with double Q-learning target
+- **Dueling + Prioritized Replay:** Use dueling architecture with prioritized sampling
+- **All three combined:** Even better performance
+
+These combinations are additive -- each improvement addresses a different problem.
+
+## Key Takeaway
+
+> Dueling DQN splits the Q-network into two streams: one for state value $V(s)$ and one for action advantages $A(s,a)$. The combination formula $Q(s,a) = V(s) + A(s,a) - \frac{1}{|\mathcal{A}|}\sum_{a'} A(s,a')$ ensures identifiability and allows the network to learn state values independently from action advantages. This is particularly beneficial when the choice of action matters little, or when there are many actions. The dueling architecture is a modular improvement that stacks with Double DQN and prioritized replay.
+
+**Reference:** "Dueling Network Architectures for Deep Reinforcement Learning", Wang et al. (2016).

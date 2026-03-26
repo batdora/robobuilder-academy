@@ -1,0 +1,9 @@
+---
+import MainLayout from '../components/layout/MainLayout.astro';
+import SandboxPage from '../components/sandbox/SandboxPage.tsx';
+---
+<MainLayout title="Sandbox">
+  <div class="min-h-[calc(100vh-3.5rem)] p-2">
+    <SandboxPage client:only="react" />
+  </div>
+</MainLayout>

@@ -1,0 +1,218 @@
+---
+title: "Exploration Strategies & Actor-Critic Preview"
+lessonId: "dqn-09-noisy-distributional"
+moduleId: "03-deep-q-learning"
+order: 9
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "EYES", "GENERALIZATION_MODULE", "VISUAL_CORTEX"]
+---
+
+# Exploration Strategies & Actor-Critic Preview
+
+This lesson covers NoisyNets -- a learned exploration strategy that replaces $\varepsilon$-greedy -- and introduces the Actor-Critic framework, which addresses a fundamental limitation of Q-learning: the inability to handle continuous action spaces.
+
+## Noisy Nets for Exploration
+
+### The Problem with $\varepsilon$-Greedy
+
+$\varepsilon$-greedy exploration is simple but **undirected**:
+- With probability $\varepsilon$, we take a completely random action
+- The exploration has no "memory" -- the agent does not systematically explore
+- In environments with many irrelevant actions, random exploration is extremely wasteful
+- The amount of exploration is the same in all states, regardless of uncertainty
+
+### The NoisyNet Idea
+
+NoisyNets (Fortunato, Azar, Piot et al., 2017) replace $\varepsilon$-greedy with **learned exploration** by adding noise directly to the network parameters.
+
+**Standard linear layer:**
+
+$$
+y = wx + b
+$$
+
+**Noisy linear layer:**
+
+$$
+y \stackrel{\text{def}}{=} (\mu^w + \sigma^w \odot \varepsilon^w)x + \mu^b + \sigma^b \odot \varepsilon^b
+$$
+
+where:
+- $\mu^w, \mu^b$ are the learned mean weights and biases
+- $\sigma^w, \sigma^b$ are the learned noise scale parameters
+- $\varepsilon^w, \varepsilon^b$ are random noise vectors (sampled each forward pass)
+- $\odot$ denotes element-wise multiplication
+
+### Key Properties
+
+1. **The noise is learned:** $\sigma^w$ and $\sigma^b$ are parameters that the network learns through backpropagation
+2. **State-dependent exploration:** The noise affects different states differently because it multiplies with the input
+3. **Self-annealing:** As the agent becomes more certain, the learned $\sigma$ values shrink, reducing exploration naturally
+4. **No $\varepsilon$ hyperparameter:** No need to manually schedule exploration decay
+
+### NoisyNet Results (Fortunato et al., 2017)
+
+| Architecture | Baseline Mean | Baseline Median | NoisyNet Mean | NoisyNet Median |
+|---|---|---|---|---|
+| DQN | 213 | 47 | **1210** | **89** |
+| A3C | 418 | 93 | **1112** | **121** |
+| Dueling | **2102** | 126 | 1908 | **154** |
+
+NoisyNets provide significant improvements, especially for DQN and A3C. The improvement is particularly dramatic for games requiring deep exploration (like Montezuma's Revenge).
+
+## The Limitation of Q-Learning: Continuous Actions
+
+### The Argmax Problem
+
+Q-learning selects actions via:
+
+$$
+a = \arg\max_a Q(s,a)
+$$
+
+This works when the action space is **discrete** and small (e.g., Atari with 18 buttons). But in robotics:
+- A motor voltage is a continuous value
+- A joint angle can be any real number
+- A force vector has continuous magnitude and direction
+
+You **cannot** enumerate all possible actions to find the argmax over an infinite action space.
+
+### Where Q-Learning Works and Doesn't
+
+| Domain | Action Space | Q-Learning? |
+|---|---|---|
+| Atari games | Discrete (4-18 buttons) | Yes |
+| Board games | Discrete (finite moves) | Yes |
+| Robot arm control | Continuous (joint torques) | No |
+| Autonomous driving | Continuous (steering, throttle) | No |
+| Locomotion | Continuous (muscle activations) | No |
+
+## From Q-Learning to Actor-Critic
+
+### The Core Idea
+
+Instead of extracting the policy from Q-values via argmax, we directly learn **two** separate networks:
+
+1. **The Actor** ($\pi_\theta$): The "Brain" -- observes the state and directly outputs an action
+   - Defines the policy $\pi_\theta(s)$
+   - Outputs a continuous action (e.g., a specific force value)
+
+2. **The Critic** ($Q_w$): The "Judge" -- evaluates how good the Actor's action was
+   - Predicts the Q-value $Q_w(s, a)$
+   - Uses TD error to update itself
+
+### The Interaction
+
+The Actor tries to act. The Critic says "That was better than expected" or "That was worse." The Actor adjusts its behavior based on the Critic's feedback.
+
+This mimics human learning: you try something, get feedback, and adjust.
+
+## The Critic's Role: Value Estimation
+
+The Critic is essentially a Q-Network that evaluates actions. It uses the standard TD-Error:
+
+$$
+\delta_t = r_t + \gamma Q_w(s_{t+1}, a_{t+1}) - Q_w(s_t, a_t)
+$$
+
+The Critic's loss:
+
+$$
+L_{\text{critic}} = (y - Q_w(s,a))^2
+$$
+
+where $y = r + \gamma Q_w(s', \pi_\theta(s'))$ is the target.
+
+**Goal:** Minimize the prediction error so the Critic becomes an accurate judge.
+
+## The Actor's Role: Policy Improvement
+
+The Actor does not see the reward directly -- it only receives the Critic's evaluation. The Actor updates its parameters to **maximize the expected value** estimated by the Critic:
+
+$$
+\nabla_\theta J(\theta) \approx \nabla_\theta Q_w(s, \text{Actor}_\theta(s))
+$$
+
+In practice, this means:
+- If the Critic gives a **high** value for an action, the Actor increases the probability of that action
+- If the Critic gives a **low** value, the Actor decreases it
+
+### The Advantage Function
+
+To make learning faster, we often use the **Advantage** $A(s,a)$:
+
+$$
+A(s,a) = Q(s,a) - V(s)
+$$
+
+**Question the advantage answers:** "Was this action better than the average action in this state?"
+
+By using the advantage, the Actor ignores the baseline value of a state and only focuses on what makes a specific action "extra good" (or "extra bad"). This reduces variance in the gradient estimates.
+
+## Actor-Critic Algorithm
+
+```
+Algorithm: Actor-Critic
+1: Initialize Actor pi_theta(s) and Critic Q_w(s, a)
+2: For each episode do
+3:   Observe initial state s
+4:   For each step do
+5:     Actor chooses a ~ pi_theta(s)
+6:     Execute a, observe r, s'
+7:     Critic Update:
+8:       y = r + gamma * Q_w(s', pi_theta(s'))
+9:       Update w by minimizing (y - Q_w(s, a))^2
+10:    Actor Update:
+11:      Update theta by following grad Q_w(s, a)
+12:    s <- s'
+13:  End For
+14: End For
+```
+
+### How the Two Networks Interact
+
+| Step | Actor | Critic |
+|---|---|---|
+| 1 | Observes state $s$, proposes action $a$ | -- |
+| 2 | -- | Evaluates: $Q_w(s, a) = 7.3$ |
+| 3 | -- | Computes TD error: $\delta = (r + \gamma Q(s',a')) - 7.3$ |
+| 4 | -- | Updates $w$ to reduce TD error |
+| 5 | Uses $\nabla_\theta Q_w(s, a)$ to adjust policy | -- |
+| 6 | New policy outputs slightly different actions | -- |
+
+## Comparison: Double Q-Learning vs Actor-Critic
+
+| Feature | Double Q-Learning | Actor-Critic |
+|---|---|---|
+| Structure | Single Value Network | Two Coupled Networks |
+| Actions | Discrete (Argmax) | Continuous (Direct Output) |
+| Learning | Value-based | Policy-based + Value-based |
+| Best For | Games, Simple Decisions | Robotics, Control Systems |
+
+### Why Actor-Critic for Robotics
+
+In robotics, you need:
+1. **Continuous Actions:** Output a specific number (e.g., 4.2 units of force), not just "Up" or "Down"
+2. **Direct Policy Learning:** Instead of inferring "what to do" from values, have a dedicated network for "doing"
+
+The Actor-Critic framework provides both. It is the foundation for modern algorithms like DDPG, TD3, and SAC (which we will study in Module 4).
+
+## The Evolution of RL Algorithms
+
+The lecture presents a clear evolutionary path:
+
+$$
+\text{Q-Learning} \rightarrow \text{Double Q} \rightarrow \text{TD3} \rightarrow \text{SAC}
+$$
+
+Each step addresses a limitation of the previous:
+
+1. **Q-Learning:** Basic value learning -- but overestimates and is discrete-only
+2. **Double Q-Learning:** Fixes overestimation -- but still discrete-only
+3. **Actor-Critic / DDPG:** Handles continuous actions -- but can be unstable
+4. **TD3:** Adds stability tricks to DDPG
+5. **SAC:** Adds entropy for robust exploration
+
+## Key Takeaway
+
+> NoisyNets replace $\varepsilon$-greedy with learned, state-dependent exploration by adding trainable noise to network parameters. This is more efficient and self-annealing. Meanwhile, Q-learning's fundamental limitation -- the argmax over a discrete action space -- motivates the Actor-Critic framework. Actor-Critic methods split the agent into a policy network (Actor) that proposes actions and a value network (Critic) that evaluates them. This enables continuous control, making it the foundation for modern robotics RL algorithms like DDPG, TD3, and SAC.

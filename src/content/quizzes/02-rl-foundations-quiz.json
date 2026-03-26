@@ -1,0 +1,208 @@
+[
+  {
+    "id": "rl-q01",
+    "type": "multiple-choice",
+    "question": "Which of the following best describes the Markov Property?",
+    "options": [
+      "The future state depends on all past states and actions",
+      "The future state and reward depend only on the current state and action, not the history",
+      "The agent always takes the optimal action",
+      "The environment is deterministic"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Markov Property states that Pr{s_{t+1}=s', r_{t+1}=r | s_t, a_t, ...history...} = Pr{s_{t+1}=s', r_{t+1}=r | s_t, a_t}. The current state captures all relevant information from the past.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "rl-q02",
+    "type": "multiple-choice",
+    "question": "In the discounted return formula R_t = sum_{k=0}^{inf} gamma^k * r_{t+k+1}, what happens when gamma = 0?",
+    "options": [
+      "The agent considers all future rewards equally",
+      "The return becomes infinite",
+      "The agent only considers the immediate reward r_{t+1}",
+      "The agent ignores all rewards"
+    ],
+    "correctIndex": 2,
+    "explanation": "When gamma = 0, all terms with k >= 1 become zero (0^k = 0 for k > 0), so R_t = r_{t+1}. The agent is completely shortsighted and only cares about the immediate reward.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "rl-q03",
+    "type": "multiple-choice",
+    "question": "Given a 2-state MDP with V(s1) = 10, V(s2) = 5, gamma = 0.9, and a transition from s1 to s2 with reward 3, what is the Bellman consistency check value r + gamma*V(s2)?",
+    "options": [
+      "7.5",
+      "3.5",
+      "7.5",
+      "7.5"
+    ],
+    "correctIndex": 0,
+    "explanation": "The TD target (or Bellman backup value) is r + gamma * V(s') = 3 + 0.9 * 5 = 3 + 4.5 = 7.5. If V(s1) = 10 but this computation gives 7.5, the Bellman equation is not satisfied for this state under the current values.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "rl-q04",
+    "type": "multiple-choice",
+    "question": "What is the key difference between the Bellman expectation equation and the Bellman optimality equation?",
+    "options": [
+      "The expectation equation uses Q-values while the optimality equation uses V-values",
+      "The expectation equation averages over actions weighted by policy pi, while the optimality equation takes the max over actions",
+      "The optimality equation does not involve transition probabilities",
+      "The expectation equation is nonlinear while the optimality equation is linear"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Bellman expectation equation sums over actions weighted by pi(s,a): V^pi(s) = sum_a pi(s,a) sum_s' P[...]. The Bellman optimality equation replaces this sum with a max: V*(s) = max_a sum_s' P[...]. This makes the expectation equation linear and the optimality equation nonlinear.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "rl-q05",
+    "type": "true-false",
+    "question": "In policy iteration, the policy improvement step is guaranteed to produce a strictly better policy or the current policy is already optimal.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctIndex": 0,
+    "explanation": "The policy improvement theorem guarantees that the greedy policy pi' with respect to V^pi satisfies V^{pi'} >= V^pi for all states. If V^{pi'} = V^pi, then both satisfy the Bellman optimality equation and are optimal. Otherwise, the improvement is strict in at least one state.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "rl-q06",
+    "type": "multiple-choice",
+    "question": "What is the main difference between policy iteration and value iteration?",
+    "options": [
+      "Policy iteration does not use the Bellman equation",
+      "Value iteration performs full policy evaluation before each improvement step",
+      "Value iteration combines evaluation and improvement by using a single max-based sweep instead of full convergence of policy evaluation",
+      "Policy iteration cannot find the optimal policy"
+    ],
+    "correctIndex": 2,
+    "explanation": "Policy iteration alternates between full policy evaluation (iterating until convergence) and policy improvement. Value iteration truncates evaluation to a single sweep and uses the Bellman optimality equation (with max) directly, effectively combining evaluation and improvement into one step.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "rl-q07",
+    "type": "multiple-choice",
+    "question": "In the TD(0) update V(s_t) <- V(s_t) + alpha[r_{t+1} + gamma*V(s_{t+1}) - V(s_t)], what is the TD error delta_t?",
+    "options": [
+      "alpha * [r_{t+1} + gamma*V(s_{t+1})]",
+      "r_{t+1} + gamma*V(s_{t+1}) - V(s_t)",
+      "V(s_{t+1}) - V(s_t)",
+      "r_{t+1} - V(s_t)"
+    ],
+    "correctIndex": 1,
+    "explanation": "The TD error is delta_t = r_{t+1} + gamma*V(s_{t+1}) - V(s_t). It measures the difference between the TD target (r_{t+1} + gamma*V(s_{t+1})) and the current estimate V(s_t). The full update is V(s_t) <- V(s_t) + alpha * delta_t.",
+    "bloomLevel": "remember"
+  },
+  {
+    "id": "rl-q08",
+    "type": "multiple-choice",
+    "question": "Which statement about Monte Carlo vs TD(0) is INCORRECT?",
+    "options": [
+      "MC must wait until the end of an episode to update; TD can update after every step",
+      "MC targets are unbiased; TD targets are biased",
+      "MC has lower variance than TD because it uses actual returns",
+      "Both MC and TD are model-free methods"
+    ],
+    "correctIndex": 2,
+    "explanation": "MC has HIGHER variance than TD, not lower. MC returns depend on many random actions and transitions throughout an episode, leading to high variance. TD(0) only depends on one transition (one reward, one next state), resulting in lower variance but introducing bias because it uses the estimated V(s_{t+1}).",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "rl-q09",
+    "type": "multiple-choice",
+    "question": "In the SARSA update Q(s,a) <- Q(s,a) + alpha[r + gamma*Q(s',a') - Q(s,a)], where does a' come from?",
+    "options": [
+      "a' = argmax_a Q(s', a) -- always the greedy action",
+      "a' is the action actually selected by the agent's current policy (e.g., epsilon-greedy) in state s'",
+      "a' is a random action",
+      "a' = a -- the same action as before"
+    ],
+    "correctIndex": 1,
+    "explanation": "SARSA is on-policy: a' is the action the agent actually takes in state s' according to its current policy. If using epsilon-greedy, a' could be the greedy action (with probability 1-epsilon) or a random action (with probability epsilon). This is what makes SARSA on-policy -- it learns about the policy it follows.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "rl-q10",
+    "type": "multiple-choice",
+    "question": "Why does Q-learning find the optimal path (along the cliff) in the cliff walking example, while SARSA finds the safe path?",
+    "options": [
+      "Q-learning uses a higher learning rate",
+      "SARSA cannot converge to the optimal policy",
+      "Q-learning's max operator learns optimal Q-values regardless of exploration, while SARSA's Q-values reflect the epsilon-greedy policy which penalizes near-cliff states due to random exploration",
+      "Q-learning has better exploration"
+    ],
+    "correctIndex": 2,
+    "explanation": "Q-learning is off-policy: its max operator targets the optimal Q*, so cliff-adjacent states have high Q-values (short path). SARSA is on-policy: its Q-values account for the epsilon-greedy exploration, so cliff-adjacent states get lower values because random actions occasionally step off the cliff (reward -100). SARSA learns the 'safe' policy that accounts for its own exploration.",
+    "bloomLevel": "evaluate"
+  },
+  {
+    "id": "rl-q11",
+    "type": "true-false",
+    "question": "Dynamic Programming methods require a complete model of the environment (transition probabilities and rewards), while TD methods do not.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctIndex": 0,
+    "explanation": "DP methods use the transition probabilities P^a_{ss'} and rewards R^a_{ss'} directly in their updates (e.g., V(s) <- sum_a pi(s,a) sum_s' P^a_{ss'}[R^a_{ss'} + gamma*V(s')]). TD methods learn from actual experience (observed rewards and state transitions) and do not need to know P or R in advance.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "rl-q12",
+    "type": "multiple-choice",
+    "question": "Compute the Q-learning update: Q(s,a) = 4.0, reward r = 2, next state s' has Q(s', up) = 6, Q(s', down) = 3, Q(s', left) = 8, alpha = 0.2, gamma = 0.5. What is the new Q(s,a)?",
+    "options": [
+      "4.0",
+      "4.4",
+      "4.8",
+      "5.2"
+    ],
+    "correctIndex": 1,
+    "explanation": "max_a' Q(s', a') = max(6, 3, 8) = 8. TD target = r + gamma * max Q = 2 + 0.5 * 8 = 6. TD error = 6 - 4.0 = 2.0. New Q(s,a) = 4.0 + 0.2 * 2.0 = 4.0 + 0.4 = 4.4.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "rl-q13",
+    "type": "multiple-choice",
+    "question": "In the epsilon-greedy action selection with epsilon = 0.1 and 4 available actions, what is the probability of selecting the greedy action?",
+    "options": [
+      "0.9",
+      "0.925",
+      "0.1",
+      "0.25"
+    ],
+    "correctIndex": 1,
+    "explanation": "With epsilon-greedy, the greedy action is selected with probability (1 - epsilon) + epsilon/|A| = 0.9 + 0.1/4 = 0.9 + 0.025 = 0.925. The greedy action gets the exploitation probability PLUS its share of the random exploration probability.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "rl-q14",
+    "type": "multiple-choice",
+    "question": "Which of the following is NOT a component of the formal MDP definition?",
+    "options": [
+      "State set S",
+      "Transition probabilities P^a_{ss'}",
+      "Learning rate alpha",
+      "Reward function R^a_{ss'}"
+    ],
+    "correctIndex": 2,
+    "explanation": "A finite MDP is defined by: state and action sets (S, A), transition probabilities P^a_{ss'}, and reward function R^a_{ss'}. The discount factor gamma is also part of the problem specification. The learning rate alpha is a parameter of specific algorithms (like TD, SARSA, Q-learning), not part of the MDP definition itself.",
+    "bloomLevel": "remember"
+  },
+  {
+    "id": "rl-q15",
+    "type": "multiple-choice",
+    "question": "Consider the Bellman expectation equation V^pi(s) = sum_a pi(s,a) sum_s' P^a_{ss'}[R^a_{ss'} + gamma*V^pi(s')]. For a deterministic policy pi(s) = a*, what does this simplify to?",
+    "options": [
+      "V^pi(s) = max_a sum_s' P^a_{ss'}[R^a_{ss'} + gamma*V^pi(s')]",
+      "V^pi(s) = sum_s' P^{a*}_{ss'}[R^{a*}_{ss'} + gamma*V^pi(s')]",
+      "V^pi(s) = R^{a*}_{ss'} + gamma*V^pi(s')",
+      "V^pi(s) = sum_a sum_s' P^a_{ss'}[R^a_{ss'} + gamma*V^pi(s')]"
+    ],
+    "correctIndex": 1,
+    "explanation": "For a deterministic policy, pi(s, a*) = 1 and pi(s, a) = 0 for all a != a*. Therefore the sum over actions collapses to a single term: V^pi(s) = sum_s' P^{a*}_{ss'}[R^{a*}_{ss'} + gamma*V^pi(s')]. We still sum over next states because the environment may be stochastic.",
+    "bloomLevel": "apply"
+  }
+]

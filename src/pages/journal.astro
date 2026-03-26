@@ -1,0 +1,9 @@
+---
+import MainLayout from '../components/layout/MainLayout.astro';
+import JournalPage from '../components/journal/JournalPage';
+---
+<MainLayout title="Robot Journal">
+  <div class="min-h-[calc(100vh-3.5rem)] p-4">
+    <JournalPage client:load />
+  </div>
+</MainLayout>

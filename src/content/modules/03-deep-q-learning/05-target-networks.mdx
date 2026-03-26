@@ -1,0 +1,210 @@
+---
+title: "Target Networks in Detail"
+lessonId: "dqn-05-target-networks"
+moduleId: "03-deep-q-learning"
+order: 5
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP", "GENERALIZATION_MODULE"]
+---
+
+# Target Networks in Detail
+
+The target network is the second pillar of DQN stability. While experience replay breaks sample correlation, the target network addresses the moving target problem. This lesson dives deep into why target networks are necessary, how they work, and the different strategies for updating them.
+
+## The Moving Target Problem
+
+### Why the Target Moves
+
+In Q-learning, the update target for state-action pair $(s,a)$ is:
+
+$$
+\text{target} = r + \gamma \max_{a'} Q_\theta(s', a')
+$$
+
+This target depends on the **same parameters** $\theta$ that we are updating. When we perform a gradient step:
+
+1. We change $\theta$ to make $Q_\theta(s,a)$ closer to the target
+2. But this change to $\theta$ also changes $Q_\theta(s', a')$ -- the target itself shifts!
+3. The new target might be further from the new $Q_\theta(s,a)$ than before
+
+### The Chasing Tail Problem
+
+The network can end up "chasing its own tail" because of **bootstrapping**:
+
+- We use our own estimate $Q_\theta(s',a')$ to construct the target
+- Updating $\theta$ changes the value of one state-action pair, but it also changes values for **other actions and similar states** (parameter sharing in neural networks)
+- This creates a chain reaction: updating one value shifts many others, which shifts the targets, which requires more updates...
+
+### Intuitive Example
+
+Imagine two adjacent Atari states $s$ and $s'$ (consecutive frames):
+- We update $Q(s, \text{fire})$ based on target $r + \gamma \max_{a'} Q(s', a')$
+- Because $s$ and $s'$ are similar, the neural network changes $Q(s', a')$ too
+- Now the target for $Q(s, \text{fire})$ has shifted
+- And the target for $Q(s', \cdot)$ has also shifted (because it depends on $Q(s'', \cdot)$, etc.)
+
+## The Target Network Solution
+
+### Core Idea
+
+Maintain **two copies** of the Q-network:
+
+1. **Online network** $Q_\theta$ -- updated at every training step via gradient descent
+2. **Target network** $Q_{\theta^-}$ -- a **frozen** copy, used only for computing targets
+
+The DQN loss function becomes:
+
+$$
+L_i(\theta_i) = \mathbb{E}_{s,a,s',r \sim D} \left( \underbrace{r + \gamma \max_{a'} Q(s', a'; \theta_i^-)}_{\text{target (uses frozen } \theta^-\text{)}} - Q(s, a; \theta_i) \right)^2
+$$
+
+Because $\theta^-$ is held **constant** during gradient computation, the target does not move when we update $\theta$. This makes the learning problem much closer to supervised learning with fixed labels.
+
+### The Training Loop
+
+1. Use online network $Q_\theta$ for **action selection** ($\varepsilon$-greedy)
+2. Use target network $Q_{\theta^-}$ for **target computation**
+3. Update online network $\theta$ via gradient descent on every step
+4. Periodically copy online weights to target network: $\theta^- \leftarrow \theta$
+
+## Hard Target Updates
+
+### The Standard Approach
+
+In the original DQN paper, the target network is updated via **hard copy** every $C$ steps:
+
+$$
+\theta^- \leftarrow \theta \quad \text{every } C \text{ steps}
+$$
+
+**Between updates** (for $C$ steps), the target network is completely frozen. The targets are stationary during this period, making the learning problem well-defined.
+
+### Effect of the Update Frequency $C$
+
+| $C$ too small | $C$ too large |
+|---|---|
+| Target changes frequently | Target is very stale |
+| Approaches the unstable "no target network" case | Slow to incorporate new learning |
+| More oscillation | Targets based on outdated information |
+
+The original DQN paper uses $C = 10{,}000$ steps.
+
+### Hard Update Timeline
+
+```
+Step 1:         theta^- = theta         (initial copy)
+Steps 1-10000:  theta updated 10000x,  theta^- frozen
+Step 10001:     theta^- = theta         (hard copy)
+Steps 10001-20000: theta updated 10000x, theta^- frozen
+Step 20001:     theta^- = theta         (hard copy)
+...
+```
+
+## Soft Target Updates (Polyak Averaging)
+
+### The Alternative Approach
+
+Instead of periodic hard copies, we can continuously blend the online weights into the target weights using an **exponential moving average**:
+
+$$
+\theta^- \leftarrow \tau \theta + (1 - \tau) \theta^-
+$$
+
+where $\tau \in (0, 1)$ is a small constant (typically $\tau = 0.001$ or $\tau = 0.005$).
+
+This is called **Polyak averaging** (also known as "soft update").
+
+### How It Works
+
+After every gradient step on $\theta$, we immediately update $\theta^-$:
+
+```
+For each training step:
+  1. Update theta via gradient descent
+  2. Update theta^- <- tau * theta + (1 - tau) * theta^-
+```
+
+With $\tau = 0.001$:
+- The target network absorbs **0.1%** of the online weights each step
+- The target network "remembers" **99.9%** of its previous weights
+- Changes to the target are smooth and gradual
+
+### Hard vs Soft Updates: Comparison
+
+| Property | Hard Update | Soft Update (Polyak) |
+|---|---|---|
+| Update rule | $\theta^- \leftarrow \theta$ every $C$ steps | $\theta^- \leftarrow \tau\theta + (1-\tau)\theta^-$ every step |
+| Target stability | Very stable for $C$ steps, then discontinuous jump | Always slowly drifting |
+| Hyperparameter | $C$ (update frequency) | $\tau$ (averaging rate) |
+| Used in | DQN, Double DQN | DDPG, TD3, SAC |
+| Typical values | $C = 10{,}000$ | $\tau = 0.001$ to $0.01$ |
+
+### Mathematical Intuition for Polyak Averaging
+
+After $n$ updates, the effective target parameter is a weighted combination of all past online parameters:
+
+$$
+\theta^-_n = \tau \sum_{k=0}^{n-1} (1-\tau)^k \theta_{n-k} + (1-\tau)^n \theta_0^-
+$$
+
+This is an exponentially-weighted moving average. Recent online parameters have higher weight, but old parameters still contribute. This smooths out oscillations in the online network.
+
+## Why Target Networks Stabilize Training
+
+### Supervised Learning Analogy
+
+| Without Target Network | With Target Network |
+|---|---|
+| Targets change every step | Targets fixed (or slowly moving) |
+| Like regression with labels changing during training | Like standard regression with fixed labels |
+| Optimization is chasing a moving goal | Optimization converges to a well-defined minimum |
+
+### What Happens Internally
+
+Between target network updates (in the hard update case):
+- The Bellman backup operator has a **fixed** target function
+- Gradient descent on the online network is solving a **well-defined** regression problem
+- The online network converges toward the fixed targets
+- When we update $\theta^-$, the targets improve (because $\theta$ is better than the old $\theta^-$)
+- Then we solve a new, better regression problem
+
+This creates a stable cycle: **freeze targets** $\rightarrow$ **optimize toward targets** $\rightarrow$ **update targets** $\rightarrow$ **repeat**.
+
+### Bigger Networks Help
+
+A somewhat surprising fact: bigger networks are less prone to the moving target problem because they **alias less**:
+- In a small network, changing $Q(s,a)$ might change $Q(s',a')$ a lot (because $s$ and $s'$ map to similar internal representations)
+- In a large network, different states can have more independent representations
+- The ripple effect of parameter updates is smaller
+
+## Worked Example: Target Network Stabilization
+
+Consider a simple example with $\gamma = 0.9$:
+
+**Without target network:**
+- Step 1: $Q(s_1, a) = 3.0$, target = $1 + 0.9 \times Q(s_2) = 1 + 0.9 \times 5.0 = 5.5$
+- Update pushes $Q(s_1, a)$ toward 5.5, but also changes $Q(s_2)$ to 5.3
+- Step 2: target = $1 + 0.9 \times 5.3 = 5.77$ -- target shifted!
+- Update pushes $Q(s_1, a)$ toward 5.77, and changes $Q(s_2)$ again...
+- The target keeps shifting, possibly oscillating.
+
+**With target network ($\theta^-$ frozen):**
+- $Q_{\theta^-}(s_2) = 5.0$ is frozen
+- Step 1: target = $1 + 0.9 \times 5.0 = 5.5$ (using frozen target network)
+- Update pushes $Q_\theta(s_1, a)$ toward 5.5
+- Step 2: target = $1 + 0.9 \times 5.0 = 5.5$ **still** (target is frozen)
+- $Q_\theta(s_1, a)$ converges stably to 5.5
+- After $C$ steps, copy $\theta$ to $\theta^-$ and repeat with improved targets
+
+## The Role of Each Network (Summary)
+
+| | Online Network ($\theta$) | Target Network ($\theta^-$) |
+|---|---|---|
+| **Purpose** | Select actions, be updated | Provide stable targets |
+| **Updated by** | Gradient descent every step | Periodic copy or Polyak averaging |
+| **Used for** | $\varepsilon$-greedy action selection | Computing $\max_{a'} Q(s', a'; \theta^-)$ |
+| **Nickname** | "Current Best Guess" | "Stable Evaluator" |
+
+## Key Takeaway
+
+> The target network is a frozen (or slowly updated) copy of the Q-network used solely for computing targets. By decoupling the network being updated from the network providing targets, we eliminate the moving target problem. Hard updates copy weights every $C$ steps for maximum stability. Soft updates (Polyak averaging) smoothly blend online weights at rate $\tau$ every step. Both approaches are fundamental to stable deep RL -- DQN uses hard updates, while later algorithms like DDPG and TD3 prefer soft updates.

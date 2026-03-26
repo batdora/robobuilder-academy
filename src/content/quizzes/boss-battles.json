@@ -1,0 +1,652 @@
+[
+  {
+    "id": "boss-01-foundations",
+    "bossName": "The Gradient Gatekeeper",
+    "bossEmoji": "🧱",
+    "moduleId": "01-foundations",
+    "xpReward": 500,
+    "phases": [
+      {
+        "name": "Phase 1: Remember",
+        "requiredScore": 3,
+        "questions": [
+          {
+            "id": "b01-p1-q1",
+            "type": "multiple-choice",
+            "question": "Which activation function suffers from the vanishing gradient problem for large positive inputs?",
+            "options": [
+              "ReLU",
+              "Sigmoid",
+              "Leaky ReLU",
+              "Linear"
+            ],
+            "correctIndex": 1,
+            "explanation": "Sigmoid squashes outputs to (0,1). For large positive or negative inputs, the gradient approaches zero, causing vanishing gradients during backpropagation.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b01-p1-q2",
+            "type": "true-false",
+            "question": "In a convolutional neural network, pooling layers increase the spatial dimensions of the feature maps.",
+            "options": ["True", "False"],
+            "correctIndex": 1,
+            "explanation": "Pooling layers reduce spatial dimensions (downsampling), which decreases computational cost and provides a form of translation invariance.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b01-p1-q3",
+            "type": "multiple-choice",
+            "question": "What does the learning rate hyperparameter control in gradient descent?",
+            "options": [
+              "The number of training epochs",
+              "The size of steps taken toward the minimum of the loss function",
+              "The number of layers in the network",
+              "The batch size during training"
+            ],
+            "correctIndex": 1,
+            "explanation": "The learning rate determines how large each parameter update step is. Too large causes divergence; too small causes slow convergence.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b01-p1-q4",
+            "type": "drag-drop",
+            "question": "Order the steps of backpropagation from first to last:",
+            "items": [
+              "Compute gradients of loss w.r.t. output layer",
+              "Forward pass: compute predictions",
+              "Update weights using optimizer",
+              "Propagate gradients backward through hidden layers",
+              "Compute loss between predictions and targets"
+            ],
+            "correctOrder": [
+              "Forward pass: compute predictions",
+              "Compute loss between predictions and targets",
+              "Compute gradients of loss w.r.t. output layer",
+              "Propagate gradients backward through hidden layers",
+              "Update weights using optimizer"
+            ],
+            "explanation": "Backpropagation proceeds: forward pass → loss computation → output gradients → backward propagation of gradients → weight update via the optimizer (e.g., SGD, Adam).",
+            "bloomLevel": "understand"
+          },
+          {
+            "id": "b01-p1-q5",
+            "type": "multiple-choice",
+            "question": "What is the purpose of batch normalization?",
+            "options": [
+              "To reduce the number of parameters",
+              "To normalize inputs of each layer, reducing internal covariate shift",
+              "To increase the learning rate automatically",
+              "To replace dropout regularization entirely"
+            ],
+            "correctIndex": 1,
+            "explanation": "Batch normalization normalizes the inputs to each layer by re-centering and re-scaling, which stabilizes training and allows higher learning rates.",
+            "bloomLevel": "understand"
+          }
+        ]
+      },
+      {
+        "name": "Phase 2: Apply",
+        "requiredScore": 2,
+        "questions": [
+          {
+            "id": "b01-p2-q1",
+            "type": "fill-equation",
+            "question": "Complete the output size formula for a convolutional layer:",
+            "equation": "output_size = (___BLANK___ - ___BLANK___ + 2 * ___BLANK___) / ___BLANK___ + 1",
+            "blanks": [
+              { "id": "b1", "correctAnswer": "W", "options": ["W", "K", "P", "S"] },
+              { "id": "b2", "correctAnswer": "K", "options": ["W", "K", "P", "S"] },
+              { "id": "b3", "correctAnswer": "P", "options": ["W", "K", "P", "S"] },
+              { "id": "b4", "correctAnswer": "S", "options": ["W", "K", "P", "S"] }
+            ],
+            "explanation": "The convolution output size formula is: (W - K + 2P) / S + 1, where W = input size, K = kernel size, P = padding, S = stride.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b01-p2-q2",
+            "type": "multiple-choice",
+            "question": "A convolutional layer has input 32x32, kernel 5x5, padding 2, stride 1. How many filters are needed to produce an output volume of 32x32x64?",
+            "options": ["32", "5", "64", "128"],
+            "correctIndex": 2,
+            "explanation": "With padding=2 and stride=1, spatial size stays 32x32. The depth of the output equals the number of filters, so 64 filters produce 32x32x64.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b01-p2-q3",
+            "type": "slider",
+            "question": "Tune the learning rate for stable training of a deep CNN on CIFAR-10 with SGD + momentum:",
+            "paramName": "Learning Rate",
+            "min": 0.0001,
+            "max": 1.0,
+            "step": 0.0001,
+            "correctRange": [0.001, 0.1],
+            "description": "Set the initial learning rate. Too low = slow convergence, too high = divergence.",
+            "effectDescription": "Low values: stable but very slow training. Mid values (0.001-0.1): typical good range for SGD+momentum. High values: loss oscillates or diverges.",
+            "explanation": "For SGD with momentum on CIFAR-10, learning rates between 0.001 and 0.1 are standard. The original ResNet paper used 0.1 with momentum 0.9.",
+            "bloomLevel": "apply"
+          }
+        ]
+      },
+      {
+        "name": "Phase 3: Analyze",
+        "requiredScore": 1,
+        "questions": [
+          {
+            "id": "b01-p3-q1",
+            "type": "multiple-choice",
+            "question": "A model achieves 99% training accuracy but only 60% validation accuracy. Which technique is LEAST likely to help?",
+            "options": [
+              "Adding dropout layers",
+              "Increasing model capacity with more layers",
+              "Data augmentation",
+              "L2 regularization"
+            ],
+            "correctIndex": 1,
+            "explanation": "The model is overfitting (high train, low val accuracy). Increasing capacity would make overfitting worse. Dropout, data augmentation, and L2 regularization all help reduce overfitting.",
+            "bloomLevel": "analyze"
+          },
+          {
+            "id": "b01-p3-q2",
+            "type": "multiple-choice",
+            "question": "You observe that training loss decreases for 50 epochs then suddenly spikes and never recovers. Which is the most likely cause?",
+            "options": [
+              "Vanishing gradients",
+              "Learning rate too high causing the optimizer to overshoot a cliff in the loss landscape",
+              "Too much dropout",
+              "Insufficient model capacity"
+            ],
+            "correctIndex": 1,
+            "explanation": "A sudden spike in loss that doesn't recover typically indicates the optimizer took a step that was too large, often due to a high learning rate interacting with a sharp region of the loss surface. Learning rate warmup or decay can help.",
+            "bloomLevel": "analyze"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boss-02-rl",
+    "bossName": "The Bellman Beast",
+    "bossEmoji": "🎰",
+    "moduleId": "02-rl-foundations",
+    "xpReward": 500,
+    "phases": [
+      {
+        "name": "Phase 1: Remember",
+        "requiredScore": 3,
+        "questions": [
+          {
+            "id": "b02-p1-q1",
+            "type": "multiple-choice",
+            "question": "In the Bellman optimality equation for Q*, what does the max operator apply to?",
+            "options": [
+              "The reward function",
+              "The next-state Q-values over all possible actions",
+              "The current state's value",
+              "The discount factor"
+            ],
+            "correctIndex": 1,
+            "explanation": "Q*(s,a) = E[r + γ max_{a'} Q*(s',a')]. The max is taken over all actions a' in the next state s', representing optimal future behavior.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b02-p1-q2",
+            "type": "true-false",
+            "question": "In Monte Carlo methods, value estimates are updated after every single step of interaction.",
+            "options": ["True", "False"],
+            "correctIndex": 1,
+            "explanation": "Monte Carlo methods update only after a complete episode, using the actual total return. Temporal Difference (TD) methods update after every step using bootstrapping.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b02-p1-q3",
+            "type": "multiple-choice",
+            "question": "Which property distinguishes model-free from model-based RL?",
+            "options": [
+              "Model-free methods cannot use neural networks",
+              "Model-free methods learn directly from experience without learning transition dynamics",
+              "Model-based methods always converge faster",
+              "Model-free methods require fewer samples"
+            ],
+            "correctIndex": 1,
+            "explanation": "Model-free RL learns value functions or policies directly from interaction, without explicitly modeling the environment's transition probabilities P(s'|s,a) or reward function.",
+            "bloomLevel": "understand"
+          },
+          {
+            "id": "b02-p1-q4",
+            "type": "drag-drop",
+            "question": "Order these RL concepts from most fundamental to most derived:",
+            "items": [
+              "Optimal policy π*",
+              "MDP definition (S, A, P, R, γ)",
+              "Bellman optimality equation",
+              "State-value function V(s)",
+              "Action-value function Q(s,a)"
+            ],
+            "correctOrder": [
+              "MDP definition (S, A, P, R, γ)",
+              "State-value function V(s)",
+              "Action-value function Q(s,a)",
+              "Bellman optimality equation",
+              "Optimal policy π*"
+            ],
+            "explanation": "First we define the MDP, then value functions V and Q, then Bellman equations relating them, and finally the optimal policy derived from solving those equations.",
+            "bloomLevel": "understand"
+          },
+          {
+            "id": "b02-p1-q5",
+            "type": "multiple-choice",
+            "question": "What is the exploration-exploitation dilemma?",
+            "options": [
+              "Choosing between on-policy and off-policy learning",
+              "Balancing trying new actions to discover better rewards vs. using known good actions",
+              "Deciding between model-based and model-free approaches",
+              "Trading off computation time for better solutions"
+            ],
+            "correctIndex": 1,
+            "explanation": "The agent must balance exploiting actions it knows yield high rewards with exploring unknown actions that might yield even higher rewards. ε-greedy is a simple solution.",
+            "bloomLevel": "remember"
+          }
+        ]
+      },
+      {
+        "name": "Phase 2: Apply",
+        "requiredScore": 2,
+        "questions": [
+          {
+            "id": "b02-p2-q1",
+            "type": "fill-equation",
+            "question": "Complete the TD(0) update rule for V(s):",
+            "equation": "V(s) ← V(s) + ___BLANK___ * (___BLANK___ + γ * V(s') - ___BLANK___)",
+            "blanks": [
+              { "id": "b1", "correctAnswer": "α", "options": ["α", "γ", "ε", "r"] },
+              { "id": "b2", "correctAnswer": "r", "options": ["α", "γ", "V(s)", "r"] },
+              { "id": "b3", "correctAnswer": "V(s)", "options": ["V(s')", "V(s)", "r", "γ"] }
+            ],
+            "explanation": "TD(0) update: V(s) ← V(s) + α(r + γV(s') − V(s)). The term (r + γV(s') − V(s)) is the TD error δ. α is the learning rate, r is the reward, γ is discount.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b02-p2-q2",
+            "type": "multiple-choice",
+            "question": "Given Q(s₁,a₁)=5, reward r=2, γ=0.9, max_a Q(s₂,a)=8, α=0.1. What is the new Q(s₁,a₁) after one Q-learning update?",
+            "options": [
+              "5.42",
+              "5.92",
+              "5.00",
+              "4.48"
+            ],
+            "correctIndex": 0,
+            "explanation": "Q-learning: Q(s,a) ← Q(s,a) + α(r + γ·max Q(s',a') − Q(s,a)) = 5 + 0.1(2 + 0.9·8 − 5) = 5 + 0.1(2 + 7.2 − 5) = 5 + 0.1(4.2) = 5.42.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b02-p2-q3",
+            "type": "multiple-choice",
+            "question": "In a gridworld with γ=1 and reward -1 per step, what is the value V(s) of a state that is exactly 3 steps from the terminal state under the optimal policy?",
+            "options": ["-3", "-1", "0", "-2"],
+            "correctIndex": 0,
+            "explanation": "With γ=1 and r=-1 per step, the optimal value is the negative of the shortest distance. V(s) = -1 + -1 + -1 = -3 for a state 3 steps away.",
+            "bloomLevel": "apply"
+          }
+        ]
+      },
+      {
+        "name": "Phase 3: Analyze",
+        "requiredScore": 1,
+        "questions": [
+          {
+            "id": "b02-p3-q1",
+            "type": "multiple-choice",
+            "question": "An RL agent learns well in training but performs poorly in a slightly different environment. This is best described as:",
+            "options": [
+              "Catastrophic forgetting",
+              "Poor generalization / overfitting to the training MDP",
+              "Reward hacking",
+              "The credit assignment problem"
+            ],
+            "correctIndex": 1,
+            "explanation": "When an agent overfits to specific dynamics of its training environment, it fails to generalize to new environments. This is analogous to overfitting in supervised learning but applied to the MDP.",
+            "bloomLevel": "analyze"
+          },
+          {
+            "id": "b02-p3-q2",
+            "type": "multiple-choice",
+            "question": "You're comparing TD(0) vs Monte Carlo for a task with very long episodes (10,000 steps). Which statement is most accurate?",
+            "options": [
+              "MC is always better because it uses true returns",
+              "TD(0) has the advantage of lower variance and can update before episode ends, making it more practical",
+              "Both methods are identical for long episodes",
+              "Neither method works for episodes this long"
+            ],
+            "correctIndex": 1,
+            "explanation": "TD(0) updates every step (no need to wait for episode end), has lower variance than MC (which sums 10,000 rewards), and bootstraps from current estimates. For long episodes, these advantages are significant.",
+            "bloomLevel": "analyze"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boss-03-dqn",
+    "bossName": "The Overestimation Oracle",
+    "bossEmoji": "🔮",
+    "moduleId": "03-deep-q-learning",
+    "xpReward": 600,
+    "phases": [
+      {
+        "name": "Phase 1: Remember",
+        "requiredScore": 3,
+        "questions": [
+          {
+            "id": "b03-p1-q1",
+            "type": "multiple-choice",
+            "question": "What problem does experience replay solve in DQN?",
+            "options": [
+              "Slow convergence",
+              "Correlated sequential samples that violate i.i.d. assumption of SGD",
+              "The need for a target network",
+              "Continuous action spaces"
+            ],
+            "correctIndex": 1,
+            "explanation": "Sequential environment samples are highly correlated. Experience replay stores transitions in a buffer and samples random mini-batches, breaking temporal correlations and improving training stability.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b03-p1-q2",
+            "type": "true-false",
+            "question": "In DQN, the target network is updated at every training step to match the online network.",
+            "options": ["True", "False"],
+            "correctIndex": 1,
+            "explanation": "The target network is updated periodically (e.g., every C steps) or via soft update (Polyak averaging). Updating every step would defeat its purpose of providing stable targets.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b03-p1-q3",
+            "type": "multiple-choice",
+            "question": "Why does standard DQN tend to overestimate Q-values?",
+            "options": [
+              "The replay buffer is too small",
+              "Using the same network to both select and evaluate actions causes max operator to prefer noise-inflated values",
+              "The discount factor is too large",
+              "The learning rate decays too fast"
+            ],
+            "correctIndex": 1,
+            "explanation": "The max operator in Q-learning is applied to noisy Q-estimates. Since max of noisy estimates is biased upward, using the same network for selection and evaluation amplifies this overestimation.",
+            "bloomLevel": "understand"
+          },
+          {
+            "id": "b03-p1-q4",
+            "type": "multiple-choice",
+            "question": "In Double DQN, which network selects the best action and which evaluates it?",
+            "options": [
+              "Target selects, online evaluates",
+              "Online selects, target evaluates",
+              "Both use the online network",
+              "Both use the target network"
+            ],
+            "correctIndex": 1,
+            "explanation": "Double DQN decouples selection and evaluation: the online network selects a* = argmax_a Q(s',a; θ), then the target network evaluates Q(s',a*; θ⁻). This reduces overestimation.",
+            "bloomLevel": "understand"
+          },
+          {
+            "id": "b03-p1-q5",
+            "type": "drag-drop",
+            "question": "Order the key innovations in DQN from first proposed to latest:",
+            "items": [
+              "Prioritized Experience Replay",
+              "Dueling DQN architecture",
+              "Original DQN (replay + target network)",
+              "Double DQN",
+              "Noisy Networks for exploration"
+            ],
+            "correctOrder": [
+              "Original DQN (replay + target network)",
+              "Double DQN",
+              "Prioritized Experience Replay",
+              "Dueling DQN architecture",
+              "Noisy Networks for exploration"
+            ],
+            "explanation": "DQN (2013/2015) → Double DQN (2015) → Prioritized Replay (2015) → Dueling DQN (2016) → NoisyNet (2017). These were later combined in the Rainbow agent.",
+            "bloomLevel": "remember"
+          }
+        ]
+      },
+      {
+        "name": "Phase 2: Apply",
+        "requiredScore": 2,
+        "questions": [
+          {
+            "id": "b03-p2-q1",
+            "type": "fill-equation",
+            "question": "Complete the DQN loss function (mean squared TD error):",
+            "equation": "L = E[(___BLANK___ + γ * max_a' Q(s', a'; θ⁻) - ___BLANK___)²]",
+            "blanks": [
+              { "id": "b1", "correctAnswer": "r", "options": ["r", "Q(s,a;θ)", "V(s)", "α"] },
+              { "id": "b2", "correctAnswer": "Q(s,a;θ)", "options": ["r", "Q(s,a;θ)", "V(s')", "Q(s',a';θ⁻)"] }
+            ],
+            "explanation": "DQN minimizes L = E[(r + γ·max_{a'} Q(s',a';θ⁻) − Q(s,a;θ))²]. The target is r + γ·max Q using the frozen target network θ⁻, and we update the online network θ.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b03-p2-q2",
+            "type": "multiple-choice",
+            "question": "DQN uses ε-greedy with ε annealed from 1.0 to 0.1 over 1M frames. After 500K frames, approximately what is ε?",
+            "options": ["0.55", "0.10", "1.00", "0.75"],
+            "correctIndex": 0,
+            "explanation": "Linear annealing from 1.0 to 0.1 over 1M frames: ε = 1.0 − (1.0−0.1) × (500K/1M) = 1.0 − 0.45 = 0.55. The agent still explores about 55% of the time.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b03-p2-q3",
+            "type": "multiple-choice",
+            "question": "A replay buffer of size 1M stores (s, a, r, s', done) tuples. If each state is an 84×84×4 frame stack of uint8 values, approximately how much memory does the buffer need for states alone?",
+            "options": [
+              "~28 GB",
+              "~56 GB",
+              "~7 GB",
+              "~112 GB"
+            ],
+            "correctIndex": 0,
+            "explanation": "Each state: 84×84×4 = 28,224 bytes. Two states per transition (s, s'): ~56,448 bytes. Times 1M: ~56 GB total, or ~28 GB for states alone. This motivates memory-efficient implementations.",
+            "bloomLevel": "apply"
+          }
+        ]
+      },
+      {
+        "name": "Phase 3: Analyze",
+        "requiredScore": 1,
+        "questions": [
+          {
+            "id": "b03-p3-q1",
+            "type": "multiple-choice",
+            "question": "In Dueling DQN, the Q-value is decomposed as Q(s,a) = V(s) + A(s,a) − mean(A). Why subtract the mean advantage?",
+            "options": [
+              "To make the network train faster",
+              "To ensure identifiability: without it, V and A can shift by a constant and produce the same Q",
+              "To reduce the number of parameters",
+              "To implement Double DQN"
+            ],
+            "correctIndex": 1,
+            "explanation": "Without centering, V(s)+c and A(s,a)−c give the same Q(s,a) for any constant c. Subtracting the mean advantage ensures a unique decomposition where V truly represents the state value.",
+            "bloomLevel": "analyze"
+          },
+          {
+            "id": "b03-p3-q2",
+            "type": "multiple-choice",
+            "question": "A DQN agent's Q-values grow unboundedly during training. Which combination of fixes would most effectively address this?",
+            "options": [
+              "Larger replay buffer + more exploration",
+              "Double DQN + reward clipping + gradient clipping",
+              "Faster target network updates + higher learning rate",
+              "Deeper network + batch normalization"
+            ],
+            "correctIndex": 1,
+            "explanation": "Unbounded Q-values typically result from overestimation (fix: Double DQN), large rewards (fix: reward clipping), and exploding gradients (fix: gradient clipping). These three together address the root causes.",
+            "bloomLevel": "analyze"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boss-04-policy",
+    "bossName": "The Policy Phantom",
+    "bossEmoji": "👻",
+    "moduleId": "04-policy-optimization",
+    "xpReward": 600,
+    "phases": [
+      {
+        "name": "Phase 1: Remember",
+        "requiredScore": 3,
+        "questions": [
+          {
+            "id": "b04-p1-q1",
+            "type": "multiple-choice",
+            "question": "What is the key idea behind the REINFORCE algorithm?",
+            "options": [
+              "Use a value function to bootstrap returns",
+              "Update policy parameters in the direction that increases expected return, weighted by the return",
+              "Learn a model of the environment",
+              "Use temporal difference errors for updates"
+            ],
+            "correctIndex": 1,
+            "explanation": "REINFORCE uses the policy gradient theorem: ∇J = E[∇log π(a|s) · G_t]. It increases the probability of actions that led to high returns and decreases those with low returns.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b04-p1-q2",
+            "type": "true-false",
+            "question": "Actor-Critic methods combine a policy network (actor) with a value network (critic) to reduce variance compared to pure REINFORCE.",
+            "options": ["True", "False"],
+            "correctIndex": 0,
+            "explanation": "True. The critic provides a baseline (value estimate), reducing variance of the policy gradient. The actor updates the policy, and the critic updates the value function. This is more stable than using raw returns.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b04-p1-q3",
+            "type": "multiple-choice",
+            "question": "In PPO, what does the clipping in the objective function prevent?",
+            "options": [
+              "The policy from exploring too much",
+              "Excessively large policy updates that could destabilize training",
+              "The value function from diverging",
+              "Gradient explosions in the actor network"
+            ],
+            "correctIndex": 1,
+            "explanation": "PPO clips the probability ratio r(θ) = π_new/π_old to [1-ε, 1+ε], preventing any single update from changing the policy too drastically. This is a simpler alternative to TRPO's KL constraint.",
+            "bloomLevel": "remember"
+          },
+          {
+            "id": "b04-p1-q4",
+            "type": "diagram-label",
+            "question": "Label the components of the Actor-Critic architecture:",
+            "description": "An Actor-Critic architecture diagram with: State input at top, two network branches (Actor and Critic), Actor outputs action probabilities, Critic outputs state value V(s), both receive TD error signal.",
+            "labels": [
+              { "id": "l1", "x": 50, "y": 10, "correctAnswer": "State s", "options": ["State s", "Action a", "Reward r", "TD Error"] },
+              { "id": "l2", "x": 25, "y": 50, "correctAnswer": "Actor π(a|s)", "options": ["Actor π(a|s)", "Critic V(s)", "Replay Buffer", "Target Network"] },
+              { "id": "l3", "x": 75, "y": 50, "correctAnswer": "Critic V(s)", "options": ["Actor π(a|s)", "Critic V(s)", "Policy Loss", "Q-Network"] },
+              { "id": "l4", "x": 50, "y": 85, "correctAnswer": "TD Error δ", "options": ["Reward r", "Loss L", "TD Error δ", "Advantage A"] }
+            ],
+            "explanation": "Actor-Critic has: State input → splits into Actor (outputs policy π(a|s)) and Critic (outputs V(s)). The TD error δ = r + γV(s') − V(s) is used to train both networks.",
+            "bloomLevel": "understand"
+          },
+          {
+            "id": "b04-p1-q5",
+            "type": "multiple-choice",
+            "question": "What is the advantage function A(s,a) in policy gradient methods?",
+            "options": [
+              "A(s,a) = Q(s,a) - V(s), measuring how much better an action is compared to the average",
+              "A(s,a) = R(s,a), the immediate reward",
+              "A(s,a) = V(s) - Q(s,a), measuring the state advantage",
+              "A(s,a) = π(a|s), the action probability"
+            ],
+            "correctIndex": 0,
+            "explanation": "The advantage A(s,a) = Q(s,a) − V(s) measures how much better action a is relative to the average action under the current policy. Positive advantage means better than average.",
+            "bloomLevel": "understand"
+          }
+        ]
+      },
+      {
+        "name": "Phase 2: Apply",
+        "requiredScore": 2,
+        "questions": [
+          {
+            "id": "b04-p2-q1",
+            "type": "fill-equation",
+            "question": "Complete the PPO clipped objective function:",
+            "equation": "L_CLIP = E[min(___BLANK___ * A, clip(___BLANK___, 1-ε, 1+ε) * ___BLANK___)]",
+            "blanks": [
+              { "id": "b1", "correctAnswer": "r(θ)", "options": ["r(θ)", "π(a|s)", "V(s)", "A"] },
+              { "id": "b2", "correctAnswer": "r(θ)", "options": ["r(θ)", "A", "V(s)", "π(a|s)"] },
+              { "id": "b3", "correctAnswer": "A", "options": ["r(θ)", "V(s)", "A", "π(a|s)"] }
+            ],
+            "explanation": "PPO-Clip: L = E[min(r(θ)·A, clip(r(θ), 1−ε, 1+ε)·A)] where r(θ) = π_θ(a|s)/π_old(a|s) is the probability ratio and A is the advantage estimate.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b04-p2-q2",
+            "type": "multiple-choice",
+            "question": "In REINFORCE with baseline, if G_t = 15, V(s_t) = 10, and ∇log π(a_t|s_t) = [0.2, -0.3], what direction does the policy gradient update push?",
+            "options": [
+              "In the direction [0.2, -0.3] scaled by advantage 5",
+              "In the direction [-0.2, 0.3] scaled by advantage 5",
+              "In the direction [0.2, -0.3] scaled by return 15",
+              "No update because the advantage is positive"
+            ],
+            "correctIndex": 0,
+            "explanation": "The update is ∇log π · (G_t − V(s_t)) = [0.2, −0.3] · (15 − 10) = [0.2, −0.3] · 5 = [1.0, −1.5]. Positive advantage means we increase this action's probability.",
+            "bloomLevel": "apply"
+          },
+          {
+            "id": "b04-p2-q3",
+            "type": "slider",
+            "question": "Set the PPO clipping parameter ε for stable policy optimization:",
+            "paramName": "Clip Range (ε)",
+            "min": 0.01,
+            "max": 0.5,
+            "step": 0.01,
+            "correctRange": [0.1, 0.3],
+            "description": "The clipping range ε determines how far the new policy can deviate from the old policy.",
+            "effectDescription": "Low ε (0.01-0.1): very conservative updates, slow learning. Standard range (0.1-0.3): good balance. High ε (>0.3): nearly unconstrained, can destabilize training.",
+            "explanation": "The standard PPO clipping range is ε=0.2 (as in the original paper), with 0.1-0.3 being commonly used. This prevents policy collapse while allowing meaningful updates.",
+            "bloomLevel": "apply"
+          }
+        ]
+      },
+      {
+        "name": "Phase 3: Analyze",
+        "requiredScore": 1,
+        "questions": [
+          {
+            "id": "b04-p3-q1",
+            "type": "multiple-choice",
+            "question": "Your actor-critic agent's policy loss oscillates wildly while the value loss steadily decreases. What is the most likely issue?",
+            "options": [
+              "The replay buffer is too small",
+              "The actor learning rate is too high relative to the critic, causing the policy to change faster than the value baseline can track",
+              "The environment is too stochastic",
+              "Discount factor γ is too small"
+            ],
+            "correctIndex": 1,
+            "explanation": "When the actor updates too fast, the critic's value estimates become stale baselines, leading to high-variance policy gradients. The standard fix is to lower the actor learning rate or train the critic for more iterations per update.",
+            "bloomLevel": "analyze"
+          },
+          {
+            "id": "b04-p3-q2",
+            "type": "multiple-choice",
+            "question": "Why is PPO generally preferred over vanilla REINFORCE in practice?",
+            "options": [
+              "PPO uses a simpler algorithm with fewer hyperparameters",
+              "PPO's clipped objective provides monotonic improvement guarantees, better sample efficiency via multiple epochs on same data, and lower variance through GAE",
+              "PPO works only for discrete action spaces while REINFORCE works for all",
+              "PPO doesn't require computing gradients"
+            ],
+            "correctIndex": 1,
+            "explanation": "PPO improves on REINFORCE by: (1) reusing data for multiple gradient steps (sample efficiency), (2) clipping to prevent destructive updates, (3) using GAE for advantage estimation (lower variance). REINFORCE wastes data (one gradient step then discard).",
+            "bloomLevel": "analyze"
+          }
+        ]
+      }
+    ]
+  }
+]

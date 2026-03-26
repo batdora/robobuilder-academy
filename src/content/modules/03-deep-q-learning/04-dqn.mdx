@@ -1,0 +1,223 @@
+---
+title: "Deep Q-Networks (DQN)"
+lessonId: "dqn-04-dqn"
+moduleId: "03-deep-q-learning"
+order: 4
+xpReward: 300
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP", "GENERALIZATION_MODULE"]
+---
+
+# Deep Q-Networks (DQN)
+
+DQN (Mnih et al., 2013/2015) is the algorithm that launched the deep reinforcement learning revolution. Its high-level idea is deceptively simple: **make Q-learning look like supervised learning**. It combines a neural network function approximator with experience replay and a target network to achieve stable, human-level performance on Atari games.
+
+## The Core Idea
+
+DQN stabilizes Q-learning with neural networks using two key innovations:
+
+1. **Experience replay** -- Apply Q-updates on batches of past experience instead of online updates
+   - Breaks correlation between consecutive samples
+   - Improves data efficiency
+   - Makes the data distribution more stationary
+
+2. **Target network** -- Use an older, frozen set of weights to compute the target values
+   - Keeps the target function from changing too quickly
+   - Prevents the network from "chasing its own tail"
+
+## The DQN Loss Function
+
+The loss function at iteration $i$ with parameters $\theta_i$ is:
+
+$$
+L_i(\theta_i) = \mathbb{E}_{s,a,s',r \sim D} \left( \underbrace{r + \gamma \max_{a'} Q(s', a'; \theta_i^-)}_{\text{target}} - Q(s, a; \theta_i) \right)^2
+$$
+
+where:
+- $D$ is the replay buffer (distribution of past experiences)
+- $\theta_i$ are the **online network** parameters (updated every step)
+- $\theta_i^-$ are the **target network** parameters (updated periodically)
+
+The target $y$ for a single transition is:
+
+$$
+y_j = \begin{cases} r_j & \text{if episode terminates at step } j+1 \\ r_j + \gamma \max_{a'} \hat{Q}(\phi_{j+1}, a'; \theta^-) & \text{otherwise} \end{cases}
+$$
+
+where $\phi$ denotes the preprocessed state.
+
+## The Full DQN Training Algorithm
+
+This is the complete DQN algorithm as published by DeepMind (Mnih et al., 2015):
+
+```
+Algorithm 1: Deep Q-Learning with Experience Replay
+
+Initialize replay memory D to capacity N
+Initialize action-value function Q with random weights theta
+Initialize target action-value function Q_hat with weights theta^- = theta
+
+For episode = 1 to M do:
+  Initialize sequence s_1 = {x_1} and preprocessed phi_1 = phi(s_1)
+  For t = 1 to T do:
+    With probability epsilon select a random action a_t
+    Otherwise select a_t = argmax_a Q(phi(s_t), a; theta)
+
+    Execute action a_t in emulator and observe reward r_t and image x_{t+1}
+    Set s_{t+1} = s_t, a_t, x_{t+1} and preprocess phi_{t+1} = phi(s_{t+1})
+
+    Store transition (phi_t, a_t, r_t, phi_{t+1}) in D
+
+    Sample random minibatch of transitions (phi_j, a_j, r_j, phi_{j+1}) from D
+
+    Set y_j = r_j                           if episode terminates at step j+1
+            = r_j + gamma * max_a' Q_hat(phi_{j+1}, a'; theta^-)    otherwise
+
+    Perform a gradient descent step on (y_j - Q(phi_j, a_j; theta))^2
+      with respect to the network parameters theta
+
+    Every C steps reset Q_hat = Q (i.e., theta^- <- theta)
+  End For
+End For
+```
+
+### Step-by-Step Breakdown
+
+**Initialization:**
+- Replay buffer $D$ with capacity $N$ (typically 1 million)
+- Online network $Q$ with random weights $\theta$
+- Target network $\hat{Q}$ copied from online: $\theta^- = \theta$
+
+**Each timestep:**
+1. **Select action** -- $\varepsilon$-greedy based on online network $Q_\theta$
+2. **Execute** -- Take action, observe reward and new state
+3. **Preprocess** -- Convert raw observation to network input $\phi$
+4. **Store** -- Add transition to replay buffer
+5. **Sample** -- Draw random minibatch from buffer
+6. **Compute targets** -- Use **target network** $\hat{Q}_{\theta^-}$ (not online network)
+7. **Gradient step** -- Minimize squared error between prediction and target
+8. **Periodically** -- Copy online weights to target network ($\theta^- \leftarrow \theta$ every $C$ steps)
+
+## The Atari Network Architecture
+
+### Preprocessing Pipeline
+
+Raw Atari frames are $210 \times 160$ pixels with 128 colors. DQN preprocesses them:
+
+1. Convert to **grayscale**
+2. Resize to $84 \times 84$ pixels
+3. **Stack 4 consecutive frames** to capture motion (velocity, direction)
+
+The input to the network is a $4 \times 84 \times 84$ tensor.
+
+### CNN Architecture
+
+The DQN architecture is a convolutional neural network:
+
+| Layer | Type | Details |
+|---|---|---|
+| Input | Frames | $4 \times 84 \times 84$ (stack of 4 grayscale frames) |
+| Conv1 | Convolutional | 16 filters of $8 \times 8$, stride 4, ReLU |
+| Conv2 | Convolutional | 32 filters of $4 \times 4$, stride 2, ReLU |
+| FC1 | Fully connected | 256 hidden units, ReLU |
+| Output | Fully connected | One output per action (e.g., 18 for Atari) |
+
+The final results used a slightly larger network with **3 convolutional layers + 1 fully connected hidden layer** and approximately **3 million parameters**.
+
+**Key design choice:** The network takes the state as input and outputs Q-values for **all actions simultaneously**. This means we only need **one forward pass** to find the best action (argmax over outputs).
+
+### Why Frame Stacking?
+
+A single frame cannot tell you:
+- Which direction the ball is moving
+- Whether an enemy is approaching or retreating
+- The velocity of any object
+
+By stacking 4 consecutive frames, the network can infer **temporal information** (velocity, acceleration) from the spatial differences between frames.
+
+## DQN Training Details
+
+### Huber Loss Instead of MSE
+
+Instead of the standard squared loss, DQN uses the **Huber loss** to clip gradients for large errors:
+
+$$
+L_\delta(a) = \begin{cases} \frac{1}{2}a^2 & \text{for } |a| \leq \delta \\ \delta(|a| - \frac{1}{2}\delta) & \text{otherwise} \end{cases}
+$$
+
+where $a = y_j - Q(\phi_j, a_j; \theta)$ is the TD error.
+
+**Why Huber loss?**
+- For small errors ($|a| \leq \delta$): behaves like MSE, providing accurate gradients
+- For large errors ($|a| > \delta$): behaves like absolute error, preventing exploding gradients
+- More robust to outliers (large TD errors from rare transitions)
+
+### Optimizer: RMSProp
+
+DQN uses **RMSProp** instead of vanilla SGD:
+- Optimization in RL really matters -- the loss landscape is nonstationary
+- RMSProp adapts the learning rate per-parameter, handling different scales
+
+### Epsilon Annealing
+
+The exploration rate $\varepsilon$ is **annealed** during training:
+- Start at $\varepsilon = 1$ (fully random)
+- Linearly decrease to $\varepsilon = 0.1$ (or 0.05) over the first **1 million frames**
+- Keep $\varepsilon$ at this final value for the rest of training
+
+This balances early exploration (discovering the environment) with later exploitation (using learned knowledge).
+
+## Atari Results
+
+### Scale of the Achievement
+
+DQN was tested on **49 Atari 2600 games** with:
+- The **same algorithm** for all games
+- The **same network architecture** (3M parameters)
+- The **same hyperparameters**
+- Input: raw pixels; Reward: change in game score
+
+Result: **Human-level performance on 29 out of 49 games**.
+
+This was groundbreaking because a single learning algorithm, with no game-specific knowledge, could master dozens of different games directly from pixel input.
+
+### Stability Techniques Ablation
+
+The combination of experience replay and target networks is crucial:
+
+| Game | Replay + Target Q | Replay, No Target Q | Target Q, No Replay | Neither |
+|---|---|---|---|---|
+| Breakout | **316.8** | 240.7 | 10.2 | 3.2 |
+| Enduro | **1006.3** | 831.4 | 141.9 | 29.1 |
+| River Raid | **7446.6** | 4102.8 | 2867.7 | 1453.0 |
+| Seaquest | **2894.4** | 822.6 | 1003.0 | 275.8 |
+
+Both innovations contribute, but experience replay generally has the **larger impact**.
+
+### What DQN Learned
+
+The network learns meaningful representations:
+- In **Pong**, Q-values spike when the ball approaches the paddle (high value for correct action)
+- In **Space Invaders**, the state value function peaks when a bullet is about to hit an alien
+- In **Seaquest**, the agent learns to surface for oxygen before running out -- sacrificing immediate rewards for long-term survival
+
+## DQN Hyperparameter Summary
+
+| Hyperparameter | Value |
+|---|---|
+| Replay buffer size $N$ | 1,000,000 |
+| Minibatch size $B$ | 32 |
+| Discount factor $\gamma$ | 0.99 |
+| Learning rate $\alpha$ | 0.00025 |
+| Initial exploration $\varepsilon$ | 1.0 |
+| Final exploration $\varepsilon$ | 0.1 |
+| Exploration decay frames | 1,000,000 |
+| Target network update frequency $C$ | 10,000 steps |
+| Optimizer | RMSProp |
+| Loss function | Huber loss |
+| Frame skip | 4 |
+
+## Key Takeaway
+
+> DQN combines a convolutional neural network with experience replay and a target network to achieve stable Q-learning at scale. The algorithm treats Q-learning as a supervised learning problem: randomly sample data from a buffer, compute targets using a frozen network, and minimize the squared error. This simple recipe achieved human-level play on 29 Atari games using the same algorithm, architecture, and hyperparameters -- a milestone in AI history.
+
+**Reference:** "Human-Level Control Through Deep Reinforcement Learning", Mnih, Kavukcuoglu, Silver et al. (2015), *Nature*.

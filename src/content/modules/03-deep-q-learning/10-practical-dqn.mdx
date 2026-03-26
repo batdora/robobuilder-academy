@@ -1,0 +1,359 @@
+---
+title: "Putting It All Together"
+lessonId: "dqn-10-practical"
+moduleId: "03-deep-q-learning"
+order: 10
+xpReward: 300
+robotPart: "STABILITY_MODULE"
+requiresParts: ["CHASSIS", "BRAIN", "EYES", "GENERALIZATION_MODULE", "VISUAL_CORTEX"]
+journalEntry: "STABILITY_MODULE installed. All systems nominal. My Q-values are calibrated. My experience buffer is deep. My targets are stable. I understand the full architecture of deep value estimation -- from tabular roots to the frontier of Actor-Critic methods. Ready for continuous control."
+---
+
+# Putting It All Together
+
+This lesson synthesizes everything we have learned about Deep Q-Networks. We review every variant, compare them head-to-head, and discuss practical considerations for implementing and debugging DQN-based algorithms.
+
+## The Complete DQN Family Tree
+
+```
+Tabular Q-Learning
+    |
+    +-- Function Approximation (Linear)
+         |
+         +-- Neural Fitted Q Iteration (NFQ, 2005)
+              |
+              +-- DQN (2013/2015)
+                   |
+                   +-- Double DQN (2016)
+                   |
+                   +-- Dueling DQN (2016)
+                   |
+                   +-- Prioritized Experience Replay (2016)
+                   |
+                   +-- NoisyNet DQN (2017)
+                   |
+                   +-- Rainbow DQN (2018) = All of the above combined
+```
+
+## Summary of All DQN Variants
+
+### 1. Vanilla DQN (Mnih et al., 2015)
+
+**Problem solved:** Scaling Q-learning to high-dimensional state spaces.
+
+**Key innovations:**
+- Experience replay (buffer of past transitions, random minibatch sampling)
+- Target network (frozen copy, updated every $C$ steps)
+
+**Loss function:**
+
+$$
+L(\theta) = \mathbb{E}_{(s,a,r,s') \sim D} \left[ \left( r + \gamma \max_{a'} Q(s', a'; \theta^-) - Q(s, a; \theta) \right)^2 \right]
+$$
+
+**Target:** $y = r + \gamma \max_{a'} Q(s', a'; \theta^-)$
+
+### 2. Double DQN (van Hasselt et al., 2016)
+
+**Problem solved:** Overestimation bias from the max operator.
+
+**Key innovation:** Decouple action selection (online) from evaluation (target).
+
+**Target:**
+
+$$
+y = r + \gamma Q_{\theta^-}(s', \arg\max_{a'} Q_\theta(s', a'))
+$$
+
+**Change from DQN:** One line -- use online network for argmax, target network for value.
+
+### 3. Dueling DQN (Wang et al., 2016)
+
+**Problem solved:** Inefficient learning when action choice does not matter.
+
+**Key innovation:** Split Q into value $V(s)$ and advantage $A(s,a)$ streams.
+
+**Architecture output:**
+
+$$
+Q(s,a) = V(s) + A(s,a) - \frac{1}{|\mathcal{A}|} \sum_{a'} A(s, a')
+$$
+
+**Change from DQN:** Architecture change only -- the loss and training are identical.
+
+### 4. Prioritized Experience Replay (Schaul et al., 2016)
+
+**Problem solved:** Wasting time on uninformative transitions.
+
+**Key innovation:** Sample proportional to TD error.
+
+**Sampling probability:**
+
+$$
+P(i) = \frac{p_i^\alpha}{\sum_k p_k^\alpha}, \quad p_i = |\delta_i| + \epsilon
+$$
+
+**Importance sampling weight:**
+
+$$
+w_i = \left(\frac{1}{N \cdot P(i)}\right)^\beta
+$$
+
+**Change from DQN:** Different sampling strategy + weighted loss.
+
+### 5. NoisyNet DQN (Fortunato et al., 2017)
+
+**Problem solved:** Undirected $\varepsilon$-greedy exploration.
+
+**Key innovation:** Add learnable noise to network parameters.
+
+**Noisy layer:**
+
+$$
+y = (\mu^w + \sigma^w \odot \varepsilon^w)x + \mu^b + \sigma^b \odot \varepsilon^b
+$$
+
+**Change from DQN:** Replace linear layers with noisy layers, remove $\varepsilon$-greedy.
+
+## Comparison Table: What Each Variant Fixes
+
+| Variant | Overestimation | Sample Efficiency | Exploration | Architecture | Stability |
+|---|---|---|---|---|---|
+| DQN | -- | Replay | $\varepsilon$-greedy | Standard | Target network |
+| Double DQN | Yes | Replay | $\varepsilon$-greedy | Standard | Target network |
+| Dueling DQN | -- | Better learning | $\varepsilon$-greedy | Two streams | Target network |
+| PER | -- | Much better | $\varepsilon$-greedy | Standard | Target network + IS weights |
+| NoisyNet | -- | Replay | Learned noise | Noisy layers | Target network |
+
+## When to Use Which Variant
+
+### Decision Guide
+
+**Always use:**
+- Experience replay (no reason not to)
+- Target network (essential for stability)
+
+**Use Double DQN when:**
+- You observe Q-value overestimation (values growing unrealistically)
+- Cost: nearly zero (one line of code change)
+- **Recommendation: Always use Double DQN instead of vanilla DQN**
+
+**Use Dueling DQN when:**
+- Large action space
+- Many states where action choice is irrelevant
+- Cost: architectural change, but same training procedure
+
+**Use Prioritized Replay when:**
+- Sparse or delayed rewards
+- You want faster learning
+- Cost: more complex implementation (sum-tree), extra hyperparameters ($\alpha$, $\beta$)
+
+**Use NoisyNets when:**
+- $\varepsilon$-greedy is insufficient (hard exploration problems)
+- You want automatic exploration scheduling
+- Cost: slightly larger network, noise sampling overhead
+
+## DQN Hyperparameter Guide
+
+### Critical Hyperparameters
+
+| Parameter | Typical Range | Impact |
+|---|---|---|
+| **Learning rate** $\alpha$ | $10^{-4}$ to $10^{-3}$ | Too high: divergence. Too low: slow learning |
+| **Discount** $\gamma$ | 0.99 | Higher: far-sighted. Lower: myopic |
+| **Buffer size** $N$ | $10^5$ to $10^6$ | Larger: more diverse samples but older data |
+| **Minibatch size** $B$ | 32 to 128 | Larger: stabler gradients but slower updates |
+| **Target update** $C$ | $10^3$ to $10^4$ | Larger: stabler targets but slower adaptation |
+| **$\varepsilon$ start** | 1.0 | Full random exploration initially |
+| **$\varepsilon$ end** | 0.01 to 0.1 | Residual exploration for safety |
+| **$\varepsilon$ decay** | $10^5$ to $10^6$ frames | Slower: more exploration. Faster: more exploitation |
+
+### DQN-Specific Hyperparameters (Atari)
+
+| Parameter | Original DQN Value |
+|---|---|
+| Replay buffer size | 1,000,000 |
+| Minibatch size | 32 |
+| Discount $\gamma$ | 0.99 |
+| Learning rate | 0.00025 |
+| Initial $\varepsilon$ | 1.0 |
+| Final $\varepsilon$ | 0.1 |
+| $\varepsilon$ decay frames | 1,000,000 |
+| Target update frequency | 10,000 steps |
+| Frame skip | 4 |
+| Frame stack | 4 |
+| Optimizer | RMSProp |
+| Loss | Huber |
+
+## Common Failure Modes and Debugging
+
+### 1. Q-Values Exploding
+
+**Symptom:** Q-values grow to unreasonable magnitudes (e.g., $10^6$).
+
+**Causes:**
+- Learning rate too high
+- Target network not being used or updated too frequently
+- Reward scale too large
+- No gradient clipping
+
+**Fixes:**
+- Reduce learning rate
+- Use Huber loss (clips large gradients)
+- Clip or normalize rewards
+- Use Double DQN to reduce overestimation
+
+### 2. Q-Values Collapsing to Same Value
+
+**Symptom:** All actions have nearly identical Q-values.
+
+**Causes:**
+- Learning rate too low
+- $\varepsilon$ too high (too much random exploration)
+- Replay buffer too large (training on very old, irrelevant data)
+- Not enough training steps
+
+**Fixes:**
+- Increase learning rate carefully
+- Reduce $\varepsilon$ faster
+- Reduce buffer size
+- Train longer
+
+### 3. Unstable Training (Oscillating Performance)
+
+**Symptom:** Performance improves then degrades cyclically.
+
+**Causes:**
+- Target network updated too frequently (chasing moving target)
+- Catastrophic forgetting (buffer too small)
+- High variance in rewards
+
+**Fixes:**
+- Increase target update period $C$
+- Increase replay buffer size
+- Normalize rewards
+- Use Polyak averaging instead of hard target updates
+
+### 4. No Learning at All
+
+**Symptom:** Performance stays flat at random policy level.
+
+**Causes:**
+- Bug in the training loop (wrong gradient, wrong target)
+- $\varepsilon$ not being annealed (stuck at random)
+- Buffer not large enough before training starts
+- Preprocessing error (frames not stacked correctly)
+
+**Fixes:**
+- Test on a simple environment first (CartPole)
+- Verify the update rule matches the pseudocode exactly
+- Ensure $\varepsilon$ is actually decreasing
+- Start training only after buffer has enough samples (e.g., 50,000)
+
+## The Road to Modern RL
+
+### DQN's Limitations
+
+Despite its success, DQN and its variants have fundamental limitations:
+
+1. **Discrete actions only** -- Cannot directly handle continuous control
+2. **Deterministic policy** (after argmax) -- Cannot represent stochastic policies
+3. **Sample inefficiency** -- Requires millions of frames to learn
+4. **No multi-step returns** -- Only uses 1-step bootstrapping
+
+### The Path Forward: Evolution of RL Algorithms
+
+$$
+\text{Q-Learning} \rightarrow \text{Double Q} \rightarrow \text{Actor-Critic} \rightarrow \text{TD3} \rightarrow \text{SAC}
+$$
+
+| Algorithm | Key Advancement |
+|---|---|
+| Q-Learning | Basic value learning (discrete) |
+| Double Q-Learning | Fixes overestimation |
+| Actor-Critic (DDPG) | Handles continuous actions |
+| TD3 | Stabilizes Actor-Critic with clipped double Q, delayed updates |
+| SAC | Adds entropy bonus for robust exploration + continuous actions |
+
+These Actor-Critic methods (covered in Module 4) build directly on the foundations established by DQN:
+- They use **experience replay** (from DQN)
+- They use **target networks** with Polyak averaging (from DQN)
+- They use **two Q-networks** to reduce overestimation (from Double DQN)
+
+## Complete Formula Reference Sheet
+
+### Tabular Q-Learning Update
+$$
+Q(s,a) \leftarrow Q(s,a) + \alpha\left[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\right]
+$$
+
+### Approximate Q-Learning Update
+$$
+\theta_{k+1} \leftarrow \theta_k - \alpha\nabla_\theta\left[\frac{1}{2}(Q_\theta(s,a) - \text{target})^2\right]\bigg|_{\theta=\theta_k}
+$$
+
+### DQN Target
+$$
+y = r + \gamma \max_{a'} Q(s', a'; \theta^-)
+$$
+
+### Double DQN Target
+$$
+y = r + \gamma Q_{\theta^-}(s', \arg\max_{a'} Q_\theta(s', a'))
+$$
+
+### DQN Loss
+$$
+L(\theta) = \mathbb{E}_{(s,a,r,s')\sim D}\left[(y - Q_\theta(s,a))^2\right]
+$$
+
+### Dueling DQN Output
+$$
+Q(s,a) = V(s) + A(s,a) - \frac{1}{|\mathcal{A}|}\sum_{a'} A(s,a')
+$$
+
+### Prioritized Sampling Probability
+$$
+P(i) = \frac{p_i^\alpha}{\sum_k p_k^\alpha}, \quad p_i = |\delta_i| + \epsilon
+$$
+
+### Importance Sampling Weight
+$$
+w_i = \left(\frac{1}{N \cdot P(i)}\right)^\beta
+$$
+
+### NoisyNet Layer
+$$
+y = (\mu^w + \sigma^w \odot \varepsilon^w)x + \mu^b + \sigma^b \odot \varepsilon^b
+$$
+
+### Huber Loss
+$$
+L_\delta(a) = \begin{cases} \frac{1}{2}a^2 & |a| \leq \delta \\ \delta(|a| - \frac{1}{2}\delta) & \text{otherwise} \end{cases}
+$$
+
+### Polyak Averaging (Soft Target Update)
+$$
+\theta^- \leftarrow \tau\theta + (1-\tau)\theta^-
+$$
+
+### Actor-Critic Update
+$$
+\nabla_\theta J(\theta) \approx \nabla_\theta Q_w(s, \pi_\theta(s))
+$$
+
+### Advantage Function
+$$
+A(s,a) = Q(s,a) - V(s)
+$$
+
+### Q-Learning Convergence Conditions
+$$
+\sum_{t=0}^{\infty} \alpha_t(s,a) = \infty, \quad \sum_{t=0}^{\infty} \alpha_t^2(s,a) < \infty
+$$
+
+## Key Takeaway
+
+> The DQN family addresses the challenge of scaling RL to large state spaces through a combination of experience replay, target networks, bias correction (Double DQN), architectural innovations (Dueling DQN), smarter sampling (PER), and learned exploration (NoisyNets). Each variant is modular and can be combined with others. For discrete action spaces, Double DQN + Dueling + PER gives excellent results. For continuous actions (robotics), we transition to Actor-Critic methods that build on the same foundational techniques. Understanding this entire progression -- from tabular Q-learning to Actor-Critic -- is essential for the exam.
+
+Unlocking the **STABILITY_MODULE** completes your robot's deep Q-learning subsystem. It now has stable estimation, bias correction, and efficient memory recall -- ready to graduate to continuous control.

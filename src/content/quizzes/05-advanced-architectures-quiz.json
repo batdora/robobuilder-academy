@@ -1,0 +1,214 @@
+{
+  "quizId": "quiz-05-advanced-architectures",
+  "moduleId": "05-advanced-architectures",
+  "title": "Advanced Architectures Quiz",
+  "xpReward": 300,
+  "questions": [
+    {
+      "id": "q1-rnn-vanishing",
+      "type": "multiple-choice",
+      "question": "What is the primary cause of the vanishing gradient problem in vanilla RNNs?",
+      "options": [
+        "The learning rate is too small",
+        "The repeated multiplication of weight matrices and tanh derivatives during BPTT",
+        "The hidden state dimension is too small",
+        "The use of softmax in the output layer"
+      ],
+      "correctIndex": 1,
+      "explanation": "During BPTT, the gradient is a product of Jacobians involving W_hh and the tanh derivative at each time step. When the spectral radius of W_hh is less than 1, this product shrinks exponentially, causing gradients to vanish.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q2-lstm-cell-state",
+      "type": "multiple-choice",
+      "question": "How does the LSTM cell state help solve the vanishing gradient problem?",
+      "options": [
+        "It uses ReLU instead of tanh activation",
+        "It provides a gradient highway where gradients flow with multiplicative factors of the forget gate (between 0 and 1)",
+        "It removes all nonlinear activations from the network",
+        "It increases the learning rate adaptively"
+      ],
+      "correctIndex": 1,
+      "explanation": "The cell state update is c_t = f_t * c_{t-1} + i_t * c_tilde. The gradient dC_t/dC_{t-1} = f_t. When the forget gate is close to 1, gradients flow almost unchanged across many time steps, preventing vanishing.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q3-gru-gates",
+      "type": "multiple-choice",
+      "question": "How many gates does a GRU have, and what are they?",
+      "options": [
+        "3 gates: forget, input, output",
+        "2 gates: reset and update",
+        "1 gate: update only",
+        "4 gates: forget, input, output, and cell"
+      ],
+      "correctIndex": 1,
+      "explanation": "The GRU has 2 gates: the reset gate (controls how much past information to forget) and the update gate (controls the balance between old and new information, acting as both forget and input gate).",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q4-seq2seq-bottleneck",
+      "type": "multiple-choice",
+      "question": "What is the 'information bottleneck' problem in vanilla Seq2Seq models?",
+      "options": [
+        "The decoder cannot generate sequences longer than the input",
+        "The encoder must compress the entire input sequence into a single fixed-length context vector",
+        "Teacher forcing prevents the model from learning",
+        "Beam search is computationally intractable"
+      ],
+      "correctIndex": 1,
+      "explanation": "The context vector c = h_T^enc must contain ALL information about the input sequence. For long sequences, this single vector cannot capture everything, leading to information loss and degraded performance.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q5-teacher-forcing",
+      "type": "true-false",
+      "question": "Teacher forcing uses the model's own predictions as input to the decoder during training.",
+      "options": [
+        "True",
+        "False"
+      ],
+      "correctIndex": 1,
+      "explanation": "False. Teacher forcing uses the GROUND-TRUTH tokens as input to the decoder during training, not the model's own predictions. This provides stable training signals but creates a train-test mismatch.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q6-attention-scaling",
+      "type": "multiple-choice",
+      "question": "Why does scaled dot-product attention divide by sqrt(d_k)?",
+      "options": [
+        "To normalize the output to unit length",
+        "To reduce computational cost",
+        "To prevent large dot products from pushing softmax into regions with extremely small gradients",
+        "To make the attention weights sum to 1"
+      ],
+      "correctIndex": 2,
+      "explanation": "When d_k is large, dot products can have large magnitudes, causing the softmax to produce near-one-hot distributions with very small gradients. Dividing by sqrt(d_k) keeps the variance of the dot products at approximately 1, preventing this saturation.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q7-self-attention-parallel",
+      "type": "multiple-choice",
+      "question": "What is the key advantage of self-attention over RNNs in terms of computation?",
+      "options": [
+        "Self-attention uses fewer parameters",
+        "Self-attention has O(1) sequential operations and O(1) maximum path length between any two positions",
+        "Self-attention does not require positional information",
+        "Self-attention uses less memory"
+      ],
+      "correctIndex": 1,
+      "explanation": "Self-attention computes all pairwise interactions in parallel (O(1) sequential ops), and any two positions are directly connected (O(1) path length). RNNs require O(T) sequential steps and have O(T) maximum path length.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q8-positional-encoding",
+      "type": "multiple-choice",
+      "question": "Why do Transformers need positional encoding?",
+      "options": [
+        "To reduce the dimensionality of the input",
+        "To enable the model to handle variable-length sequences",
+        "Because self-attention is permutation invariant and treats input as a set, not a sequence",
+        "To prevent overfitting on long sequences"
+      ],
+      "correctIndex": 2,
+      "explanation": "Self-attention computes pairwise interactions regardless of position -- permuting the input permutes the output identically. Without positional encoding, the model cannot distinguish 'the cat sat' from 'sat the cat'. Positional encodings inject position information.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q9-bert-vs-gpt",
+      "type": "multiple-choice",
+      "question": "What is the fundamental difference between BERT and GPT architectures?",
+      "options": [
+        "BERT uses attention while GPT uses recurrence",
+        "BERT uses bidirectional attention (encoder only) while GPT uses causal/unidirectional attention (decoder only)",
+        "BERT is larger than GPT",
+        "BERT is pre-trained while GPT is not"
+      ],
+      "correctIndex": 1,
+      "explanation": "BERT uses the Transformer encoder with bidirectional attention (each token sees all other tokens), making it suited for understanding tasks. GPT uses the Transformer decoder with causal attention (each token only sees previous tokens), making it suited for generation tasks.",
+      "bloomLevel": "analyze"
+    },
+    {
+      "id": "q10-vit-patches",
+      "type": "multiple-choice",
+      "question": "For a 224x224 image with patch size 16, how many patches does ViT create?",
+      "options": [
+        "14",
+        "196",
+        "256",
+        "784"
+      ],
+      "correctIndex": 1,
+      "explanation": "N = (H * W) / P^2 = (224 * 224) / (16 * 16) = 50176 / 256 = 196 patches. With the [CLS] token, the total sequence length becomes 197.",
+      "bloomLevel": "apply"
+    },
+    {
+      "id": "q11-gcn-equation",
+      "type": "multiple-choice",
+      "question": "In the GCN matrix formulation H^(l) = sigma(D_tilde^(-1/2) A_tilde D_tilde^(-1/2) H^(l-1) W^(l)), what does A_tilde represent?",
+      "options": [
+        "The adjacency matrix without modification",
+        "The adjacency matrix with self-loops added (A + I)",
+        "The normalized adjacency matrix",
+        "The degree matrix"
+      ],
+      "correctIndex": 1,
+      "explanation": "A_tilde = A + I adds self-loops to the adjacency matrix, ensuring that each node's own features are included in the aggregation. D_tilde is the degree matrix of A_tilde, and the symmetric normalization D^(-1/2) A_tilde D^(-1/2) prevents high-degree nodes from dominating.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q12-graphsage-vs-gcn",
+      "type": "multiple-choice",
+      "question": "What key feature distinguishes GraphSAGE from GCN?",
+      "options": [
+        "GraphSAGE uses attention mechanisms",
+        "GraphSAGE samples a fixed-size neighborhood and concatenates (rather than averages) the node's own representation with the aggregated neighbor representation",
+        "GraphSAGE can only work on directed graphs",
+        "GraphSAGE uses spectral convolutions"
+      ],
+      "correctIndex": 1,
+      "explanation": "GraphSAGE (1) samples a fixed number of neighbors for scalability, and (2) concatenates the node's own embedding with the aggregated neighbor embedding before transformation, rather than averaging all together like GCN.",
+      "bloomLevel": "analyze"
+    },
+    {
+      "id": "q13-gat-attention",
+      "type": "multiple-choice",
+      "question": "In Graph Attention Networks (GAT), how are attention coefficients computed between nodes u and v?",
+      "options": [
+        "As the dot product of their feature vectors",
+        "Using LeakyReLU on a learned vector applied to the concatenation of their transformed features",
+        "As the inverse of their shortest-path distance",
+        "Using the degree of each node"
+      ],
+      "correctIndex": 1,
+      "explanation": "GAT computes e_vu = LeakyReLU(a^T [Wh_v || Wh_u]), where a is a learned attention vector, W is a shared weight matrix, and || is concatenation. These scores are then normalized via softmax over neighbors.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q14-over-smoothing",
+      "type": "multiple-choice",
+      "question": "What is the over-smoothing problem in GNNs?",
+      "options": [
+        "The model overfits to the training data",
+        "As more layers are stacked, all node embeddings converge to similar values because each node aggregates from increasingly overlapping neighborhoods",
+        "The adjacency matrix becomes too sparse",
+        "The learning rate needs to be reduced for deep GNNs"
+      ],
+      "correctIndex": 1,
+      "explanation": "With L layers, each node aggregates from its L-hop neighborhood. In densely connected graphs, deep GNNs cause all nodes to have overlapping neighborhoods, making embeddings indistinguishable. This is why GNNs typically use only 2-3 layers.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q15-gnn-inductive",
+      "type": "true-false",
+      "question": "GNNs can generalize to entirely unseen graphs because their aggregation parameters are shared across all nodes.",
+      "options": [
+        "True",
+        "False"
+      ],
+      "correctIndex": 0,
+      "explanation": "True. Because GNN weight matrices W^(l) are shared across all nodes (not node-specific), the learned aggregation functions can be applied to any node in any graph. This inductive capability allows generalization to new nodes and entirely new graphs.",
+      "bloomLevel": "understand"
+    }
+  ]
+}

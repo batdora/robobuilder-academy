@@ -1,0 +1,9 @@
+---
+import MainLayout from '../components/layout/MainLayout.astro';
+import GauntletMode from '../components/gauntlet/GauntletMode';
+---
+<MainLayout title="Gauntlet Mode">
+  <div class="min-h-[calc(100vh-3.5rem)] p-4">
+    <GauntletMode client:load />
+  </div>
+</MainLayout>

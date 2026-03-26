@@ -1,0 +1,217 @@
+---
+title: "The Policy Gradient Theorem"
+lessonId: "pg-02-theorem"
+moduleId: "04-policy-optimization"
+order: 2
+xpReward: 250
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP"]
+---
+
+# The Policy Gradient Theorem
+
+This lesson derives the **Likelihood Ratio Policy Gradient** -- the foundational result that makes policy optimization practical. We will go through every step of the derivation, understand the log-derivative trick, and see how the dynamics model cancels out.
+
+## The Objective Function
+
+Recall from the previous lesson that our objective is:
+
+$$
+U(\theta) = \sum_\tau P(\tau; \theta) R(\tau)
+$$
+
+where $\tau = (s_0, u_0, s_1, u_1, \ldots, s_H, u_H)$ is a trajectory, and:
+
+$$
+R(\tau) = \sum_{t=0}^{H} R(s_t, u_t)
+$$
+
+Our goal is to find $\theta$ that maximizes $U(\theta)$. We will use **gradient ascent**:
+
+$$
+\theta \leftarrow \theta + \alpha \nabla_\theta U(\theta)
+$$
+
+But how do we compute $\nabla_\theta U(\theta)$?
+
+## The Likelihood Ratio Trick (Log-Derivative Trick)
+
+### Step 1: Write the Gradient
+
+$$
+\nabla_\theta U(\theta) = \nabla_\theta \sum_\tau P(\tau; \theta) R(\tau)
+$$
+
+### Step 2: Move Gradient Inside the Sum
+
+Since $R(\tau)$ does not depend on $\theta$ (it is the observed return of a trajectory):
+
+$$
+= \sum_\tau \nabla_\theta P(\tau; \theta) \cdot R(\tau)
+$$
+
+### Step 3: Multiply and Divide by $P(\tau; \theta)$
+
+This is the key trick. We multiply and divide by $P(\tau; \theta)$:
+
+$$
+= \sum_\tau \frac{P(\tau; \theta)}{P(\tau; \theta)} \nabla_\theta P(\tau; \theta) \cdot R(\tau)
+$$
+
+### Step 4: Recognize the Log-Derivative
+
+Recall the identity: $\nabla_\theta \log f(\theta) = \frac{\nabla_\theta f(\theta)}{f(\theta)}$, which means $\frac{\nabla_\theta P(\tau; \theta)}{P(\tau; \theta)} = \nabla_\theta \log P(\tau; \theta)$.
+
+Rearranging:
+
+$$
+= \sum_\tau P(\tau; \theta) \cdot \frac{\nabla_\theta P(\tau; \theta)}{P(\tau; \theta)} \cdot R(\tau)
+$$
+
+$$
+= \sum_\tau P(\tau; \theta) \cdot \nabla_\theta \log P(\tau; \theta) \cdot R(\tau)
+$$
+
+### Step 5: Recognize as an Expectation
+
+This is an expectation under the trajectory distribution $P(\tau; \theta)$:
+
+$$
+\nabla_\theta U(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\nabla_\theta \log P(\tau; \theta) \cdot R(\tau)\right]
+$$
+
+### Step 6: Approximate with Samples
+
+We can estimate this expectation using $m$ sampled trajectories from $\pi_\theta$:
+
+$$
+\nabla_\theta U(\theta) \approx \hat{g} = \frac{1}{m} \sum_{i=1}^{m} \nabla_\theta \log P(\tau^{(i)}; \theta) \cdot R(\tau^{(i)})
+$$
+
+This is **unbiased**: $\mathbb{E}[\hat{g}] = \nabla_\theta U(\theta)$.
+
+## Decomposing the Log-Probability of a Trajectory
+
+Now we need to compute $\nabla_\theta \log P(\tau; \theta)$. Recall:
+
+$$
+P(\tau; \theta) = P(s_0) \prod_{t=0}^{H} \pi_\theta(u_t \mid s_t) \cdot P(s_{t+1} \mid s_t, u_t)
+$$
+
+### Step 1: Take the Log
+
+$$
+\log P(\tau; \theta) = \log P(s_0) + \sum_{t=0}^{H} \left[\log P(s_{t+1} \mid s_t, u_t) + \log \pi_\theta(u_t \mid s_t)\right]
+$$
+
+### Step 2: Take the Gradient with Respect to $\theta$
+
+The initial state distribution $P(s_0)$ does not depend on $\theta$.
+
+The dynamics model $P(s_{t+1} \mid s_t, u_t)$ does not depend on $\theta$.
+
+Therefore:
+
+$$
+\nabla_\theta \log P(\tau^{(i)}; \theta) = \nabla_\theta \left[\sum_{t=0}^{H} \log P(s_{t+1}^{(i)} \mid s_t^{(i)}, u_t^{(i)}) + \sum_{t=0}^{H} \log \pi_\theta(u_t^{(i)} \mid s_t^{(i)})\right]
+$$
+
+$$
+= \sum_{t=0}^{H} \nabla_\theta \log \pi_\theta(u_t^{(i)} \mid s_t^{(i)})
+$$
+
+**Critical insight: No dynamics model required!** The transition probabilities cancel out in the gradient computation. We only need the policy gradient $\nabla_\theta \log \pi_\theta(u_t | s_t)$, which we know because we chose the policy parameterization.
+
+## The Complete Policy Gradient Estimate
+
+Putting it all together:
+
+$$
+\hat{g} = \frac{1}{m} \sum_{i=1}^{m} \nabla_\theta \log P(\tau^{(i)}; \theta) \cdot R(\tau^{(i)})
+$$
+
+where:
+
+$$
+\nabla_\theta \log P(\tau^{(i)}; \theta) = \sum_{t=0}^{H} \underbrace{\nabla_\theta \log \pi_\theta(u_t^{(i)} \mid s_t^{(i)})}_{\text{no dynamics model required!}}
+$$
+
+So the final gradient estimate is:
+
+$$
+\hat{g} = \frac{1}{m} \sum_{i=1}^{m} \left(\sum_{t=0}^{H} \nabla_\theta \log \pi_\theta(u_t^{(i)} \mid s_t^{(i)})\right) R(\tau^{(i)})
+$$
+
+This is **unbiased**: $\mathbb{E}[\hat{g}] = \nabla_\theta U(\theta)$.
+
+## Intuition Behind the Policy Gradient
+
+The gradient estimate $\hat{g} = \frac{1}{m}\sum_{i=1}^{m} \nabla_\theta \log P(\tau^{(i)}; \theta) R(\tau^{(i)})$ has a beautiful interpretation:
+
+- **If $R(\tau^{(i)}) > 0$** (good trajectory): Increase the probability of the actions taken in trajectory $\tau^{(i)}$. The gradient $\nabla_\theta \log P(\tau;\theta)$ points in the direction that makes trajectory $\tau$ more likely.
+- **If $R(\tau^{(i)}) < 0$** (bad trajectory): Decrease the probability of the actions taken. The negative sign flips the gradient direction.
+- **The magnitude of $R(\tau^{(i)})$** determines how strongly we push.
+
+**Key distinction from path derivatives:** The likelihood ratio approach changes the *probabilities of experienced paths*. It does not try to change the paths themselves (which would require backpropagating through the dynamics).
+
+## Properties of the Gradient Estimate
+
+- **Unbiased:** $\mathbb{E}[\hat{g}] = \nabla_\theta U(\theta)$
+- **Model-free:** Does not require knowledge of transition dynamics $P(s'|s,a)$
+- **High variance:** As formulated, this estimator is very noisy. We will need several fixes:
+  - Baseline subtraction (next lesson)
+  - Temporal structure / causality
+  - Trust regions (later lessons)
+
+## The Score Function
+
+The term $\nabla_\theta \log \pi_\theta(a \mid s)$ is called the **score function**. It tells us the direction in parameter space that most increases the log-probability of action $a$ in state $s$.
+
+For a Gaussian policy with mean $\mu_\theta(s)$ and fixed variance $\sigma^2$:
+
+$$
+\nabla_\theta \log \pi_\theta(u | s) = \frac{(u - \mu_\theta(s))}{\sigma^2} \nabla_\theta \mu_\theta(s)
+$$
+
+For a softmax policy:
+
+$$
+\nabla_\theta \log \pi_\theta(a | s) = \phi(s, a) - \mathbb{E}_{\pi_\theta}[\phi(s, \cdot)]
+$$
+
+## Worked Example: Two-Trajectory Gradient Estimate
+
+**Setup:** We collect $m = 2$ trajectories, each of length $H = 1$ (one step).
+
+- Trajectory 1: $(s_0, u_0)$ with $R(\tau^{(1)}) = +5$, and $\nabla_\theta \log \pi_\theta(u_0^{(1)} | s_0^{(1)}) = [0.3, -0.1]$
+- Trajectory 2: $(s_0, u_0)$ with $R(\tau^{(2)}) = -2$, and $\nabla_\theta \log \pi_\theta(u_0^{(2)} | s_0^{(2)}) = [-0.2, 0.4]$
+
+**Gradient estimate:**
+
+$$
+\hat{g} = \frac{1}{2}\left([0.3, -0.1] \cdot 5 + [-0.2, 0.4] \cdot (-2)\right)
+$$
+
+$$
+= \frac{1}{2}\left([1.5, -0.5] + [0.4, -0.8]\right)
+$$
+
+$$
+= \frac{1}{2}[1.9, -1.3] = [0.95, -0.65]
+$$
+
+The gradient pushes $\theta_1$ up (because trajectory 1, which had high return, had positive score in dimension 1) and $\theta_2$ down.
+
+## Summary of the Derivation
+
+| Step | What We Do | Result |
+|------|-----------|--------|
+| 1 | Write $\nabla_\theta U(\theta) = \nabla_\theta \sum_\tau P(\tau;\theta)R(\tau)$ | Gradient of sum |
+| 2 | Multiply/divide by $P(\tau;\theta)$ | Introduce log-derivative |
+| 3 | Recognize $\frac{\nabla P}{P} = \nabla \log P$ | Log-derivative trick |
+| 4 | Result is expectation under $\pi_\theta$ | Can sample trajectories |
+| 5 | Decompose $\log P(\tau;\theta)$ | Dynamics cancels out |
+| 6 | Approximate with $m$ samples | $\hat{g} = \frac{1}{m}\sum_i \nabla_\theta \log P(\tau^{(i)};\theta) R(\tau^{(i)})$ |
+
+## Key Takeaway
+
+> The **likelihood ratio policy gradient** gives us an unbiased, model-free estimate of $\nabla_\theta U(\theta)$ using only sampled trajectories. The dynamics model cancels out, so we only need the gradient of our own policy $\nabla_\theta \log \pi_\theta(a|s)$. However, this estimator has high variance, motivating the improvements we study next.

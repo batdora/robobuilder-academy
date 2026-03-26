@@ -1,0 +1,131 @@
+---
+title: "Attention Mechanism"
+lessonId: "advanced-arch-04-attention"
+moduleId: "05-advanced-architectures"
+order: 4
+xpReward: 200
+isBonus: true
+requiresParts: []
+journalEntry: "FOCUS MODULE ONLINE. No longer forced to compress everything -- now I can look back and attend to what matters."
+---
+
+# Attention Mechanism
+
+The Seq2Seq bottleneck forces the encoder to compress an entire input sequence into a single vector. **Attention** (Bahdanau et al., 2014) eliminates this bottleneck by allowing the decoder to **look back at all encoder hidden states** and focus on the most relevant parts at each decoding step.
+
+## Intuition
+
+When translating a sentence, you do not read the entire sentence, memorize a single representation, and then translate. Instead, you **attend** to different parts of the source sentence as you generate each target word. Attention gives neural networks this same ability.
+
+## Attention in Seq2Seq
+
+Instead of using only the final encoder state, attention computes a **weighted combination** of all encoder hidden states at each decoder step.
+
+Given encoder hidden states $\mathbf{h}_1^{\text{enc}}, \mathbf{h}_2^{\text{enc}}, \ldots, \mathbf{h}_T^{\text{enc}}$ and the current decoder state $\mathbf{h}_t^{\text{dec}}$:
+
+**Step 1: Compute alignment scores** (how relevant is each encoder state?):
+
+$$
+e_{t,i} = \text{score}(\mathbf{h}_t^{\text{dec}}, \mathbf{h}_i^{\text{enc}})
+$$
+
+**Step 2: Normalize to get attention weights:**
+
+$$
+\alpha_{t,i} = \frac{\exp(e_{t,i})}{\sum_{j=1}^{T} \exp(e_{t,j})} = \text{softmax}(e_{t,i})
+$$
+
+**Step 3: Compute context vector** (weighted sum of encoder states):
+
+$$
+\mathbf{c}_t = \sum_{i=1}^{T} \alpha_{t,i} \mathbf{h}_i^{\text{enc}}
+$$
+
+**Step 4: Use context vector in decoder:**
+
+$$
+\mathbf{h}_t^{\text{dec}} = f(\mathbf{h}_{t-1}^{\text{dec}}, \mathbf{y}_{t-1}, \mathbf{c}_t)
+$$
+
+The context vector $\mathbf{c}_t$ is **different at each decoder step** -- the model attends to different parts of the input depending on what it is generating.
+
+## Types of Attention Scoring Functions
+
+### Additive Attention (Bahdanau)
+
+Uses a learned feedforward network:
+
+$$
+e_{t,i} = \mathbf{v}^T \tanh(\mathbf{W}_1 \mathbf{h}_t^{\text{dec}} + \mathbf{W}_2 \mathbf{h}_i^{\text{enc}})
+$$
+
+where $\mathbf{v}$, $\mathbf{W}_1$, $\mathbf{W}_2$ are learned parameters.
+
+### Dot-Product Attention
+
+Simply computes the dot product:
+
+$$
+e_{t,i} = (\mathbf{h}_t^{\text{dec}})^T \mathbf{h}_i^{\text{enc}}
+$$
+
+No additional parameters. Fast and efficient, but requires encoder and decoder states to have the same dimension.
+
+### Scaled Dot-Product Attention
+
+Scales by the square root of the dimension to prevent the dot products from growing too large:
+
+$$
+e_{t,i} = \frac{(\mathbf{h}_t^{\text{dec}})^T \mathbf{h}_i^{\text{enc}}}{\sqrt{d_k}}
+$$
+
+where $d_k$ is the dimension of the key vectors. When $d_k$ is large, the dot products can be very large in magnitude, pushing the softmax into regions with extremely small gradients. The $\frac{1}{\sqrt{d_k}}$ scaling prevents this.
+
+### General Attention (Luong)
+
+Uses a learned weight matrix:
+
+$$
+e_{t,i} = (\mathbf{h}_t^{\text{dec}})^T \mathbf{W}_a \mathbf{h}_i^{\text{enc}}
+$$
+
+## Query-Key-Value Framework
+
+Attention can be generalized using the **Query-Key-Value (QKV)** abstraction:
+
+- **Query ($\mathbf{Q}$):** What am I looking for? (decoder state)
+- **Key ($\mathbf{K}$):** What do I contain? (encoder states, used for matching)
+- **Value ($\mathbf{V}$):** What information do I provide? (encoder states, used for the output)
+
+$$
+\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}
+$$
+
+This formulation is crucial for understanding Transformers (next lessons).
+
+## Worked Example: Attention Weights
+
+Consider an encoder processing "Pick up the red block" with hidden states $\mathbf{h}_1$ through $\mathbf{h}_5$. When the decoder is generating the action "grasp":
+
+- $\alpha_{t,1}$ (Pick) = 0.05
+- $\alpha_{t,2}$ (up) = 0.05
+- $\alpha_{t,3}$ (the) = 0.02
+- $\alpha_{t,4}$ (red) = 0.38
+- $\alpha_{t,5}$ (block) = 0.50
+
+The model attends primarily to "red" and "block" -- the parts most relevant to the grasping action. The context vector:
+
+$$
+\mathbf{c}_t = 0.05\mathbf{h}_1 + 0.05\mathbf{h}_2 + 0.02\mathbf{h}_3 + 0.38\mathbf{h}_4 + 0.50\mathbf{h}_5
+$$
+
+## Benefits of Attention
+
+1. **No information bottleneck:** The decoder can access all encoder states directly
+2. **Interpretability:** Attention weights show what the model is focusing on
+3. **Better gradient flow:** Provides shortcut connections from decoder back to encoder, helping with vanishing gradients
+4. **Handles long sequences:** Performance does not degrade as sequence length increases
+
+## Key Takeaway
+
+> Attention allows the decoder to dynamically focus on different parts of the input at each generation step, eliminating the information bottleneck of vanilla Seq2Seq. The Query-Key-Value framework generalizes attention into a lookup mechanism that will become the foundation of the Transformer architecture.

@@ -1,0 +1,53 @@
+---
+import MainLayout from './MainLayout.astro';
+
+interface Props {
+  title: string;
+  lessonId: string;
+  moduleId: string;
+  robotPart: string;
+  xpReward: number;
+}
+
+const { title, lessonId, moduleId, robotPart, xpReward } = Astro.props;
+---
+
+<MainLayout title={title}>
+  <div class="flex min-h-[calc(100vh-3.5rem)]">
+    <article class="w-[70%] p-8 overflow-y-auto prose prose-invert max-w-none">
+      <h1 class="text-[#00ff41] mb-6">{title}</h1>
+      <div class="mdx-content">
+        <slot />
+      </div>
+      <div class="mt-12 border-t-2 border-[#0f3460] pt-8">
+      </div>
+    </article>
+
+    <aside class="w-[30%] bg-[#16213e] border-l-4 border-[#0095ff] p-4 overflow-y-auto">
+      <div class="nes-container is-dark with-title mb-4">
+        <p class="title" style="font-size: 0.625rem;">Lesson Info</p>
+        <div class="space-y-3 text-xs">
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b0]">Module</span>
+            <span class="text-[#0095ff]">{moduleId}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b0]">Robot Part</span>
+            <span class="text-[#ffd700]">{robotPart}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b0]">XP Reward</span>
+            <span class="text-[#00ff41]">+{xpReward} XP</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nes-container is-dark with-title">
+        <p class="title" style="font-size: 0.625rem;">Sandbox Preview</p>
+        <div class="h-48 bg-[#1a1a2e] rounded flex items-center justify-center text-[#a0a0b0] text-xs">
+          <slot name="sidebar" />
+        </div>
+      </div>
+    </aside>
+  </div>
+</MainLayout>

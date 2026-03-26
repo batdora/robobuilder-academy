@@ -1,0 +1,306 @@
+---
+title: "Q-Learning with Function Approximation"
+lessonId: "dqn-01-function-approx"
+moduleId: "03-deep-q-learning"
+order: 1
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP"]
+---
+
+# Q-Learning with Function Approximation
+
+In previous modules we learned tabular Q-learning, where we maintain a table with one entry for every $(s, a)$ pair. This works beautifully for small, discrete problems. But real robotics environments have enormous -- or even continuous -- state spaces. This lesson bridges the gap from tables to functions.
+
+## Why Tabular Methods Fail at Scale
+
+### The Curse of Dimensionality
+
+Tabular Q-learning stores one value $Q(s,a)$ for every state-action pair. Consider the scale of real problems:
+
+| Environment | Approximate State Space Size |
+|---|---|
+| Gridworld | $10^1$ |
+| Tetris | $10^{60}$ |
+| Atari (RAM) | $10^{308}$ |
+| Atari (pixels) | $10^{16992}$ |
+| Crawler robot (2D continuous) | $10^2$ (discretized) |
+| Hopper (continuous) | $10^{10}$ (discretized) |
+| Humanoid (continuous) | $10^{100}$ (discretized) |
+
+There are two fundamental problems with tabular methods at these scales:
+
+1. **Too many states to visit** -- We can never explore all states during training
+2. **Too many states to store** -- We cannot hold the Q-table in memory
+
+### The Need for Generalization
+
+The key insight is that we need to **generalize** across states:
+
+- Learn about a **small number** of training states from experience
+- **Generalize** that experience to new, similar situations
+- This is the fundamental idea of **supervised learning** applied to RL
+
+> If two states look similar, they should have similar Q-values. A table cannot capture this -- each entry is independent.
+
+## Recap: Q-Values and Q-Value Iteration
+
+Before introducing approximation, let us recall the exact formulations.
+
+**Bellman Equation for Optimal Q-values:**
+
+$$
+Q^*(s,a) = \sum_{s'} P(s'|s,a) \Big( R(s,a,s') + \gamma \max_{a'} Q^*(s',a') \Big)
+$$
+
+**Q-Value Iteration** (exact, requires model):
+
+$$
+Q_{k+1}(s,a) \leftarrow \sum_{s'} P(s'|s,a) \Big( R(s,a,s') + \gamma \max_{a'} Q_k(s',a') \Big)
+$$
+
+**Tabular Q-Learning** (sampling-based, model-free):
+
+- Rewrite Q-value iteration as an expectation:
+
+$$
+Q_{k+1}(s,a) \leftarrow \mathbb{E}_{s' \sim P(s'|s,a)} \left[ R(s,a,s') + \gamma \max_{a'} Q_k(s',a') \right]
+$$
+
+- Replace the expectation with a **single sample**:
+
+$$
+\text{target}(s') = R(s,a,s') + \gamma \max_{a'} Q_k(s',a')
+$$
+
+- Incorporate into a **running average**:
+
+$$
+Q_{k+1}(s,a) \leftarrow (1 - \alpha) Q_k(s,a) + \alpha \left[ \text{target}(s') \right]
+$$
+
+This can be rewritten using the **TD Error**:
+
+$$
+Q(s,a) \leftarrow Q(s,a) + \alpha \underbrace{\left[ r + \gamma \max_{a'} Q(s',a') - Q(s,a) \right]}_{\text{TD Error } \delta}
+$$
+
+### Tabular Q-Learning Algorithm
+
+```
+Algorithm: Tabular Q-Learning
+  Start with Q_0(s,a) for all s, a
+  Get initial state s
+  For k = 1, 2, ... till convergence:
+      Sample action a, get next state s'
+      If s' is terminal:
+          target = R(s, a, s')
+      Else:
+          target = R(s, a, s') + gamma * max_a' Q_k(s', a')
+      Q_{k+1}(s, a) <- (1 - alpha) * Q_k(s, a) + alpha * [target]
+      s <- s'
+```
+
+### Action Selection: Epsilon-Greedy
+
+How do we pick actions during training?
+
+- **Greedy:** Choose $a = \arg\max_a Q_k(s,a)$ -- exploits current knowledge
+- **Random:** Choose any action uniformly -- explores but wastes time
+- **$\varepsilon$-Greedy:** With probability $\varepsilon$ pick a random action, otherwise pick the greedy action
+
+$$
+\pi(a|s) = \begin{cases} 1 - \varepsilon + \frac{\varepsilon}{|A|} & \text{if } a = \arg\max_{a'} Q(s,a') \\ \frac{\varepsilon}{|A|} & \text{otherwise} \end{cases}
+$$
+
+### Q-Learning Convergence Properties
+
+Q-learning converges to the optimal policy even when acting suboptimally. This is **off-policy learning** -- the behavior policy (e.g., $\varepsilon$-greedy) differs from the target policy (greedy).
+
+**Technical requirements for convergence:**
+1. All states and actions are visited infinitely often
+2. The learning rate schedule satisfies the Robbins-Monro conditions:
+
+$$
+\sum_{t=0}^{\infty} \alpha_t(s,a) = \infty \qquad \sum_{t=0}^{\infty} \alpha_t^2(s,a) < \infty
+$$
+
+The first condition ensures we can reach any target value. The second ensures the updates eventually stabilize.
+
+## From Tables to Function Approximation
+
+### The Core Idea
+
+Instead of a table, we have a **parametrized Q function** $Q_\theta(s,a)$ where $\theta$ is a vector of learnable parameters.
+
+### Linear Function Approximation
+
+The simplest form uses a **linear combination of features**:
+
+$$
+Q_\theta(s,a) = \theta_0 f_0(s,a) + \theta_1 f_1(s,a) + \cdots + \theta_n f_n(s,a)
+$$
+
+Or in vector notation:
+
+$$
+Q_\theta(s,a) = \boldsymbol{\theta}^\top \boldsymbol{f}(s,a)
+$$
+
+where $\boldsymbol{f}(s,a) = [f_0(s,a), f_1(s,a), \ldots, f_n(s,a)]^\top$ is a **feature vector** (also called **basis functions**).
+
+### Feature Engineering Example: Tetris
+
+Tetris has approximately $10^{60}$ states -- far too many for a table. Instead, we can define 22 hand-crafted features:
+
+- **Features 0--9:** Height $h[k]$ of each of the 10 columns
+- **Features 10--18:** Absolute difference between successive column heights $|h[k+1] - h[k]|$
+- **Feature 19:** Maximum column height $\max_k h[k]$
+- **Feature 20:** Number of "holes" in the board
+- **Feature 21:** Bias term (always equals 1)
+
+The approximate value function becomes:
+
+$$
+\hat{V}_\theta(s) = \sum_{i=0}^{21} \theta_i \phi_i(s) = \boldsymbol{\theta}^\top \boldsymbol{\phi}(s)
+$$
+
+With just 22 parameters instead of $10^{60}$ table entries, we can learn a good policy!
+
+## The Gradient Update Rule
+
+### Loss Function
+
+We want $Q_\theta(s,a)$ to be close to the target. Define the loss for a single sample:
+
+$$
+L(\theta) = \frac{1}{2} \Big( Q_\theta(s,a) - \text{target}(s') \Big)^2
+$$
+
+where:
+
+$$
+\text{target}(s') = R(s,a,s') + \gamma \max_{a'} Q_{\theta_k}(s',a')
+$$
+
+### Gradient Descent Update
+
+Take the gradient of the loss with respect to $\theta$ and step in the negative gradient direction:
+
+$$
+\theta_{k+1} \leftarrow \theta_k - \alpha \nabla_\theta \left[ \frac{1}{2} \Big( Q_\theta(s,a) - \text{target}(s') \Big)^2 \right] \Bigg|_{\theta = \theta_k}
+$$
+
+Expanding the gradient:
+
+$$
+\theta_{k+1} \leftarrow \theta_k - \alpha \Big( Q_\theta(s,a) - \text{target}(s') \Big) \nabla_\theta Q_\theta(s,a) \Big|_{\theta = \theta_k}
+$$
+
+### Why "Semi-Gradient"?
+
+Notice that $\text{target}(s')$ also depends on $\theta$ (through $Q_{\theta_k}$), but we **do not** differentiate through the target. We treat it as a fixed value. This is called the **semi-gradient** method.
+
+If we differentiated through the target too, we would get a different (and often poorly behaved) algorithm.
+
+## Connection to Tabular Q-Learning
+
+An elegant result: if we use a **tabular function approximator** where $\theta \in \mathbb{R}^{|S| \times |A|}$ and $Q_\theta(s,a) \equiv \theta_{sa}$, then the gradient update **recovers exactly** the tabular update.
+
+**Proof:**
+
+$$
+\nabla_{\theta_{sa}} \left[ \frac{1}{2} (\theta_{sa} - \text{target}(s'))^2 \right] = \theta_{sa} - \text{target}(s')
+$$
+
+Plugging into the update:
+
+$$
+\theta_{sa} \leftarrow \theta_{sa} - \alpha(\theta_{sa} - \text{target}(s'))
+$$
+
+$$
+= (1 - \alpha)\theta_{sa} + \alpha[\text{target}(s')]
+$$
+
+Compare with the tabular Q-learning update:
+
+$$
+Q_{k+1}(s,a) \leftarrow (1-\alpha)Q_k(s,a) + \alpha[\text{target}(s')]
+$$
+
+They are **identical**! Tabular Q-learning is a special case of approximate Q-learning where each state-action pair has its own independent parameter.
+
+## Convergence of Approximate Q-Learning
+
+### The Bad News
+
+Unlike tabular Q-learning, approximate Q-learning is **not guaranteed to converge** -- even when the function class is expressive enough to represent the true Q function.
+
+### Divergence Example
+
+Consider a simple MDP with two states $x_1, x_2$:
+- From $x_1$: transition to $x_2$ with reward 0
+- From $x_2$: self-loop with reward 0
+
+The true value function is $V(x_1) = V(x_2) = 0$.
+
+Use a linear approximator: $\hat{V}_\theta = [1, 2]^\top \theta$, so $\hat{V}(x_1) = \theta$ and $\hat{V}(x_2) = 2\theta$.
+
+After one Bellman backup and least-squares fit:
+
+$$
+\begin{bmatrix} 1 \\ 2 \end{bmatrix} \theta^{(1)} \approx \begin{bmatrix} 2\gamma\theta^{(0)} \\ 2\gamma\theta^{(0)} \end{bmatrix}
+$$
+
+Solving the least-squares problem: $\theta^{(1)} = \frac{6}{5}\gamma \theta^{(0)}$
+
+After $i$ iterations:
+
+$$
+\theta^{(i)} = \left(\frac{6}{5}\gamma\right)^i \theta^{(0)}
+$$
+
+This **diverges** if $\gamma > \frac{5}{6}$, even though the function class can perfectly represent the true value!
+
+## Convergence Guarantees: Averager Approximators
+
+### Non-Expansion Property
+
+**Definition:** An operator $G$ is a **non-expansion** with respect to a norm $\|\cdot\|$ if:
+
+$$
+\|GJ_1 - GJ_2\| \leq \|J_1 - J_2\|
+$$
+
+**Key Fact:** If operator $F$ is a $\gamma$-contraction and operator $G$ is a non-expansion (both with respect to the same norm), then $GF$ is a $\gamma$-contraction:
+
+$$
+\|GFJ_1 - GFJ_2\| \leq \gamma \|J_1 - J_2\|
+$$
+
+**Corollary:** If the supervised learning step (projection) is a non-expansion, then value iteration with function approximation is a $\gamma$-contraction, giving us a convergence guarantee.
+
+### What is an Averager?
+
+A function approximation scheme is an **averager** if every fitted value is a weighted average of target values (plus possibly predetermined constants). Examples include:
+
+- **Nearest neighbor** (state aggregation)
+- **Linear interpolation** over triangles or tetrahedra
+
+Averager function approximators are non-expansions with respect to the $\ell_\infty$ norm.
+
+**Important:** Linear regression is **NOT** an averager and **NOT** a non-expansion. It can amplify differences between target functions.
+
+### Fixed Point Guarantee
+
+**Theorem:** Let $J^*$ be the optimal value function for a finite MDP with discount $\gamma$. Let the projection operator $\Pi$ be a non-expansion w.r.t. the infinity norm. Suppose $\|\tilde{J} - J^*\|_\infty \leq \epsilon$. Then $\Pi T$ converges to a value function $\bar{J}$ such that:
+
+$$
+\|\bar{J} - J^*\| \leq 2\epsilon + \frac{2\gamma\epsilon}{1-\gamma}
+$$
+
+This tells us: if we pick a non-expansion function approximator that can approximate $J^*$ well (with error $\epsilon$), we get a good value function estimate.
+
+## Key Takeaway
+
+> Tabular Q-learning works for small MDPs. For large or continuous state spaces, we replace the Q-table with a parametrized function $Q_\theta(s,a)$ and use gradient descent to update $\theta$. Linear function approximation with good features can work, but convergence is no longer guaranteed in general -- only for special "averager" approximators. This motivates the use of neural networks with careful stabilization tricks, which we will explore next.

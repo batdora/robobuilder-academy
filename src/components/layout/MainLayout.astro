@@ -1,0 +1,38 @@
+---
+import '../../styles/global.css';
+import SoundToggle from '../ui/SoundToggle';
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'Interactive pixel-art learning for CMPE 591 Robotics' } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={description} />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <title>{title} | RoboBuilder Academy</title>
+</head>
+<body class="min-h-screen bg-[#1a1a2e]">
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-[#16213e] border-b-4 border-[#0095ff] px-4 py-2 flex items-center justify-between">
+    <a href="/" class="font-[family-name:var(--font-heading)] text-[#00ff41] text-xs hover:text-white transition-colors">
+      RoboBuilder Academy
+    </a>
+    <div class="flex items-center gap-4">
+      <a href="/" class="text-[#a0a0b0] hover:text-white text-sm transition-colors">Blueprint</a>
+      <a href="/sandbox" class="text-[#a0a0b0] hover:text-white text-sm transition-colors">Sandbox</a>
+      <a href="/gauntlet" class="text-[#a0a0b0] hover:text-white text-sm transition-colors">Gauntlet</a>
+      <a href="/exam" class="text-[#a0a0b0] hover:text-white text-sm transition-colors">Exam</a>
+      <a href="/dashboard" class="text-[#a0a0b0] hover:text-white text-sm transition-colors">Dashboard</a>
+      <a href="/journal" class="text-[#a0a0b0] hover:text-white text-sm transition-colors">Journal</a>
+      <SoundToggle client:load />
+    </div>
+  </nav>
+  <main class="pt-14">
+    <slot />
+  </main>
+</body>
+</html>

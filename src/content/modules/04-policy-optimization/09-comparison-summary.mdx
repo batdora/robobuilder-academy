@@ -1,0 +1,233 @@
+---
+title: "Policy Optimization: The Full Picture"
+lessonId: "pg-09-comparison"
+moduleId: "04-policy-optimization"
+order: 9
+xpReward: 200
+requiresParts: ["SAFETY_GOVERNOR"]
+---
+
+# Policy Optimization: The Full Picture
+
+This lesson synthesizes everything from the module. We compare all algorithms, understand when to use which, connect back to value-based methods, and review the key formulas you need to know.
+
+## The Evolution of Policy Gradient Methods
+
+The development from REINFORCE to PPO follows a clear arc of **reducing variance** and **improving stability**:
+
+```
+REINFORCE (1992)
+  |-- High variance, simple
+  v
++ Baseline Subtraction
+  |-- Reduced variance, still noisy
+  v
++ Temporal Structure (reward-to-go)
+  |-- Better credit assignment
+  v
+Actor-Critic / A2C (bootstrapping)
+  |-- Lower variance via learned V(s)
+  v
++ GAE (bias-variance tradeoff)
+  |-- Tunable lambda parameter
+  v
+Natural Policy Gradient
+  |-- Parameterization-invariant updates
+  v
+TRPO (2015)
+  |-- Guaranteed improvement via KL constraint
+  v
+PPO (2017)
+  |-- Same stability, much simpler
+```
+
+## Master Comparison Table
+
+| Feature | REINFORCE | A2C | TRPO | PPO |
+|---------|-----------|-----|------|-----|
+| **Type** | Monte Carlo PG | Actor-Critic | Trust Region | Clipped Surrogate |
+| **Advantage Estimate** | $G_t - b$ | $\delta_t$ or $n$-step | GAE | GAE |
+| **Value Function** | Optional baseline | Required (critic) | Required | Required |
+| **Optimization** | SGD | SGD | CG + line search | Adam/SGD |
+| **Trust Region** | None | None | KL constraint | Implicit (clipping) |
+| **Update Frequency** | End of episode | Every step or $n$-step | Batch | Batch, multi-epoch |
+| **Variance** | Very high | Low-medium | Low | Low |
+| **Bias** | None (MC) | Some (bootstrap) | Some (GAE) | Some (GAE) |
+| **Implementation** | Simple | Moderate | Complex | Simple |
+| **Sample Efficiency** | Low | Medium | Medium-high | Medium-high |
+| **Stability** | Unstable | Moderate | Very stable | Very stable |
+| **Monotonic Improvement** | No | No | Theoretically yes | Empirically yes |
+
+## Key Formulas Summary
+
+### 1. Policy Gradient Theorem (Likelihood Ratio)
+
+$$
+\nabla_\theta U(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_{t=0}^{H} \nabla_\theta \log \pi_\theta(u_t | s_t) \cdot R(\tau)\right]
+$$
+
+### 2. REINFORCE with Baseline
+
+$$
+\hat{g} = \frac{1}{m}\sum_{i=1}^{m}\sum_{t=0}^{H-1} \nabla_\theta \log \pi_\theta(u_t^{(i)} | s_t^{(i)}) \left(\sum_{k=t}^{H-1} R(s_k^{(i)}, u_k^{(i)}) - b(s_t^{(i)})\right)
+$$
+
+### 3. Advantage Function
+
+$$
+A^\pi(s, a) = Q^\pi(s, a) - V^\pi(s)
+$$
+
+### 4. TD Error (1-step Advantage Estimate)
+
+$$
+\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)
+$$
+
+### 5. GAE($\gamma$, $\lambda$)
+
+$$
+\hat{A}_t^{GAE} = \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}
+$$
+
+Recursive: $\hat{A}_t = \delta_t + \gamma\lambda\hat{A}_{t+1}$
+
+### 6. Surrogate Loss (TRPO/PPO)
+
+$$
+L(\pi) = \mathbb{E}_{\pi_{\text{old}}}\left[\frac{\pi(a|s)}{\pi_{\text{old}}(a|s)} A^{\pi_{\text{old}}}(s, a)\right]
+$$
+
+### 7. TRPO Constraint
+
+$$
+\max_\pi L(\pi) \quad \text{s.t.} \quad \mathbb{E}\left[D_{KL}(\pi_{\text{old}} \| \pi)\right] \leq \epsilon
+$$
+
+### 8. PPO Clipped Objective
+
+$$
+L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\left[\min\left(r_t(\theta)\hat{A}_t, \;\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]
+$$
+
+where $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$
+
+### 9. Natural Gradient
+
+$$
+\tilde{\nabla}_\theta J(\theta) = F(\theta)^{-1} \nabla_\theta J(\theta)
+$$
+
+where $F(\theta) = \mathbb{E}\left[\nabla_\theta \log \pi_\theta(a|s) \nabla_\theta \log \pi_\theta(a|s)^\top\right]$
+
+### 10. KL Divergence (Dynamics Cancel)
+
+$$
+D_{KL}(\pi_\theta \| \pi_{\theta'}) \approx \frac{1}{M}\sum_{(s,u)} \log \frac{\pi_\theta(u|s)}{\pi_{\theta'}(u|s)}
+$$
+
+## When to Use Which Method
+
+### Use REINFORCE when:
+- You need a simple baseline implementation
+- The environment has short episodes
+- You are prototyping or teaching
+
+### Use A2C when:
+- You need online (per-step) updates
+- Episodes are long or infinite-horizon
+- You want moderate sample efficiency with simple code
+
+### Use TRPO when:
+- You need theoretical guarantees of improvement
+- You can afford the computational overhead
+- The task is sensitive to policy collapse
+
+### Use PPO when:
+- You want the best general-purpose algorithm
+- You need something that "just works"
+- You want to leverage GPU-optimized SGD
+- You are scaling to large-scale problems (games, robotics, LLM alignment)
+
+**In practice, PPO is the default choice** for most applications due to its simplicity, stability, and strong empirical performance.
+
+## Connection to Value-Based Methods
+
+Policy gradient and value-based methods are not mutually exclusive:
+
+| Approach | What is Learned | Policy Extraction |
+|----------|----------------|-------------------|
+| Value-based (DQN) | $Q(s,a)$ | $\arg\max_a Q(s,a)$ |
+| Policy-based (REINFORCE) | $\pi_\theta(a|s)$ | Direct |
+| Actor-Critic (A2C, PPO) | Both $\pi_\theta$ and $V_\phi$ | Direct (actor) |
+
+Actor-Critic methods are a **bridge**: they use value-based ideas (learning $V$ or $Q$) to reduce the variance of policy gradient updates.
+
+The **advantage** $A(s,a) = Q(s,a) - V(s)$ connects both worlds:
+- From the value-based perspective: it measures relative action quality
+- From the policy gradient perspective: it is the signal that tells us which actions to reinforce
+
+## Key Concepts Checklist
+
+Make sure you understand each of these for the exam:
+
+**Foundations:**
+- [ ] Why policy-based methods are needed (continuous actions, stochastic policies)
+- [ ] The objective $U(\theta) = \sum_\tau P(\tau;\theta)R(\tau)$
+- [ ] The log-derivative trick: $\nabla P / P = \nabla \log P$
+- [ ] Why dynamics model cancels in the gradient
+
+**Variance Reduction:**
+- [ ] Temporal structure (only future rewards matter)
+- [ ] Baseline subtraction (proof that it is unbiased)
+- [ ] Different baselines: constant, optimal constant, time-dependent, $V^\pi(s)$
+- [ ] Discounting as variance reduction
+
+**Actor-Critic:**
+- [ ] Actor (policy) + Critic (value function) architecture
+- [ ] TD error as advantage estimate: $\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$
+- [ ] $n$-step returns: bias-variance tradeoff
+- [ ] A3C: asynchronous parallel training
+
+**GAE:**
+- [ ] $\hat{A}_t^{GAE} = \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}$
+- [ ] $\lambda = 0$ gives TD, $\lambda = 1$ gives MC
+- [ ] Connection to TD($\lambda$) and eligibility traces
+- [ ] Practical computation (backward pass)
+
+**Trust Regions:**
+- [ ] Why step sizes matter more in RL than supervised learning
+- [ ] Fisher Information Matrix and natural gradient
+- [ ] KL divergence as a measure of policy change
+- [ ] Surrogate loss function and importance sampling ratio
+- [ ] TRPO: constrained optimization with CG + line search
+- [ ] PPO: clipped surrogate objective
+- [ ] PPO clipping cases (positive vs negative advantage)
+
+## State of the Art Applications
+
+Policy optimization methods (primarily PPO) have been used in:
+
+- **Game playing:** OpenAI Five (Dota 2), Atari games, StarCraft
+- **Robotics:** Locomotion (humanoid walking/running), dexterous manipulation (Rubik's cube), quadrotor control
+- **Language models:** RLHF for ChatGPT, InstructGPT, Claude
+- **Autonomous driving:** Policy optimization for planning
+- **Chip design:** Google used RL for chip placement optimization
+- **Soccer simulation:** Multi-agent learning for simulated soccer
+
+## Exam-Style Practice Questions
+
+1. **Derive** the likelihood ratio policy gradient from $U(\theta) = \sum_\tau P(\tau;\theta)R(\tau)$.
+2. **Prove** that subtracting a state-dependent baseline from the policy gradient does not introduce bias.
+3. **Explain** why the dynamics model cancels out in the policy gradient computation.
+4. **Compare** the 1-step TD advantage estimate with the full Monte Carlo return in terms of bias and variance.
+5. **Write** the GAE formula and explain what happens at $\lambda = 0$ and $\lambda = 1$.
+6. **Explain** the PPO clipping mechanism: what happens when $\hat{A} > 0$ and $r_t > 1 + \epsilon$?
+7. **Why** is step size more critical in RL than in supervised learning?
+8. **What** is the Fisher Information Matrix and how does it relate to KL divergence?
+9. **Compare** the TRPO and PPO algorithms in terms of implementation and theoretical guarantees.
+10. **Give** the TRPO surrogate loss and constraint. Explain each term.
+
+## Key Takeaway
+
+> This module covered the complete pipeline of policy optimization: from the likelihood ratio gradient, through variance reduction (baselines, temporal structure, GAE), to trust region methods (TRPO, PPO). The key insight is that we can compute model-free policy gradients using the log-derivative trick, and we can make these stable using trust regions. PPO, with its clipped surrogate objective, represents the current practical standard -- simple, stable, and effective across a vast range of applications.

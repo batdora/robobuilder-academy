@@ -1,0 +1,185 @@
+---
+title: "Why Policy-Based Methods?"
+lessonId: "pg-01-policy-based"
+moduleId: "04-policy-optimization"
+order: 1
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "INSTINCT_CHIP"]
+---
+
+# Why Policy-Based Methods?
+
+In previous modules, we learned **value-based methods** like Q-learning that estimate $Q(s, a)$ or $V(s)$ and derive a policy from these values. Now we take a fundamentally different approach: **directly parameterize and optimize the policy itself**.
+
+## The Reinforcement Learning Setup (Recap)
+
+Recall the standard RL interaction loop (Sutton & Barto, 1998):
+
+- At each time step $t$, the agent observes state $s_t$
+- The agent selects action $u_t$ (also written $a_t$) according to its policy
+- The environment returns reward $r_t$ and next state $s_{t+1}$
+
+The goal is to find a policy that maximizes expected cumulative reward.
+
+## Value-Based vs Policy-Based Methods
+
+### Value-Based Methods (e.g., DQN)
+
+In value-based methods, we learn $Q(s, a)$ and extract the policy as:
+
+$$
+\pi(s) = \arg\max_a Q(s, a)
+$$
+
+**Problems with this approach:**
+
+1. **Requires solving $\arg\max_u Q_\theta(s, u)$** — For continuous or high-dimensional action spaces, this optimization is itself a hard problem.
+2. **V(s) doesn't prescribe actions** — The value function $V(s)$ tells you how good a state is, but to get actions you would need the dynamics model plus a Bellman backup.
+3. **The policy is simpler than Q or V** — Often, the mapping from state to action is much simpler than the value landscape. For example, a robotic grasp policy might be simpler than its Q-function.
+
+### Policy-Based Methods
+
+Instead, we **directly parameterize** the policy with parameters $\theta$:
+
+$$
+\pi_\theta(u \mid s) : \text{probability of taking action } u \text{ in state } s
+$$
+
+And we optimize:
+
+$$
+\max_\theta \; \mathbb{E}\left[\sum_{t=0}^{H} R(s_t) \;\middle|\; \pi_\theta\right]
+$$
+
+where $H$ is the horizon (episode length).
+
+## Advantages of Policy-Based Methods
+
+### 1. Natural Handling of Continuous Actions
+
+Value-based methods need $\arg\max_a Q(s, a)$, which is trivial for discrete actions but intractable for continuous ones. Policy-based methods directly output continuous actions.
+
+**Example:** A robot arm controlling 7 joint torques simultaneously. The policy network takes the state and directly outputs a 7-dimensional continuous action vector.
+
+### 2. Stochastic Policies
+
+Policy-based methods can represent **stochastic policies**, which are sometimes optimal (e.g., in partially observable environments or adversarial settings like rock-paper-scissors).
+
+A value-based method with $\arg\max$ always gives a deterministic policy, which may not be optimal in all settings.
+
+### 3. Smoother Optimization Landscape
+
+Using a stochastic policy class **smooths out the optimization problem**. Small changes in $\theta$ lead to small changes in the action distribution $\pi_\theta(u|s)$, which leads to small changes in expected reward. This is in contrast to value-based methods where a tiny change in $Q$ values can completely flip which action is selected.
+
+### 4. Convergence Properties
+
+Policy gradient methods have **stronger convergence guarantees** than value-based methods with function approximation. Approximate value-based methods (e.g., DQN) can diverge in certain settings, while policy gradient methods converge to at least a local optimum.
+
+## Parameterized Policies
+
+### Softmax Policy (Discrete Actions)
+
+For discrete action spaces with features $\phi(s, a)$:
+
+$$
+\pi_\theta(a \mid s) = \frac{e^{\theta^\top \phi(s, a)}}{\sum_{a'} e^{\theta^\top \phi(s, a')}}
+$$
+
+The score function (gradient of log-policy) is:
+
+$$
+\nabla_\theta \log \pi_\theta(a \mid s) = \phi(s, a) - \sum_{a'} \pi_\theta(a' \mid s) \phi(s, a')
+$$
+
+This is the feature of the chosen action minus the average feature under the current policy.
+
+### Gaussian Policy (Continuous Actions)
+
+For continuous action spaces, a common choice is a Gaussian policy:
+
+$$
+\pi_\theta(u \mid s) = \frac{1}{\sqrt{2\pi}\sigma} \exp\left(-\frac{(u - \mu_\theta(s))^2}{2\sigma^2}\right)
+$$
+
+where $\mu_\theta(s)$ is the mean action (parameterized by $\theta$, often a neural network), and $\sigma$ can be fixed or learned.
+
+The score function is:
+
+$$
+\nabla_\theta \log \pi_\theta(u \mid s) = \frac{(u - \mu_\theta(s))}{\sigma^2} \nabla_\theta \mu_\theta(s)
+$$
+
+**Intuition:** The gradient pushes the mean toward actions that led to high returns and away from those that led to low returns.
+
+### Neural Network Policies
+
+In deep RL, $\pi_\theta(u \mid s)$ is typically a neural network:
+
+- **Input:** State $s$ (or an observation/image)
+- **Output:** Action distribution parameters
+  - For discrete: logits for each action (fed through softmax)
+  - For continuous: mean $\mu$ and standard deviation $\sigma$ of a Gaussian
+
+## The Policy Optimization Objective
+
+We formalize the objective as follows. Let $\tau$ denote a trajectory (state-action sequence):
+
+$$
+\tau = (s_0, u_0, s_1, u_1, \ldots, s_H, u_H)
+$$
+
+Define the total return of a trajectory:
+
+$$
+R(\tau) = \sum_{t=0}^{H} R(s_t, u_t)
+$$
+
+The expected return under policy $\pi_\theta$ is:
+
+$$
+U(\theta) = \mathbb{E}\left[\sum_{t=0}^{H} R(s_t, u_t) \;\middle|\; \pi_\theta\right] = \sum_\tau P(\tau; \theta) R(\tau)
+$$
+
+where $P(\tau; \theta)$ is the probability of trajectory $\tau$ under policy $\pi_\theta$:
+
+$$
+P(\tau; \theta) = P(s_0) \prod_{t=0}^{H} \pi_\theta(u_t \mid s_t) P(s_{t+1} \mid s_t, u_t)
+$$
+
+Our optimization goal:
+
+$$
+\max_\theta \; U(\theta) = \max_\theta \sum_\tau P(\tau; \theta) R(\tau)
+$$
+
+## Why Not Just Use Finite Differences?
+
+One naive approach: perturb each parameter $\theta_i$ by a small $\epsilon$ and estimate the gradient numerically:
+
+$$
+\frac{\partial U}{\partial \theta_i} \approx \frac{U(\theta + \epsilon \mathbf{e}_i) - U(\theta)}{\epsilon}
+$$
+
+This requires $O(|\theta|)$ evaluations of $U$, each of which requires many rollouts. For a neural network with millions of parameters, this is completely impractical.
+
+Instead, we will derive **analytical policy gradients** that can be estimated efficiently from sampled trajectories.
+
+## Worked Example: Softmax Policy
+
+**Setup:** Consider a 2-state, 2-action MDP. State features: $\phi(s_1, a_1) = [1, 0]$, $\phi(s_1, a_2) = [0, 1]$. Parameters: $\theta = [1, 2]$.
+
+**Step 1:** Compute action probabilities in state $s_1$:
+
+$$
+\pi_\theta(a_1 | s_1) = \frac{e^{\theta^\top [1,0]}}{e^{\theta^\top [1,0]} + e^{\theta^\top [0,1]}} = \frac{e^1}{e^1 + e^2} = \frac{e}{e + e^2} = \frac{1}{1 + e} \approx 0.269
+$$
+
+$$
+\pi_\theta(a_2 | s_1) = \frac{e^2}{e + e^2} = \frac{e}{1 + e} \approx 0.731
+$$
+
+**Step 2:** The policy currently favors $a_2$ because $\theta_2 > \theta_1$. If we observe that $a_1$ leads to higher returns, the policy gradient will increase $\theta_1$ relative to $\theta_2$.
+
+## Key Takeaway
+
+> Policy-based methods directly optimize the policy $\pi_\theta(u|s)$, avoiding the need to solve $\arg\max_a Q(s,a)$. This naturally handles continuous actions, allows stochastic policies, and provides smoother optimization. The cost is that we must now figure out how to compute gradients of expected reward with respect to $\theta$ — which is the topic of the next lesson.

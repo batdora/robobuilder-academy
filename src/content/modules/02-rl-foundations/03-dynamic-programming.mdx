@@ -1,0 +1,215 @@
+---
+title: "Dynamic Programming Methods"
+lessonId: "rl-03-dynamic-programming"
+moduleId: "02-rl-foundations"
+order: 3
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN"]
+isBonus: false
+---
+
+# Dynamic Programming Methods
+
+Dynamic Programming (DP) provides the first set of algorithms for solving MDPs. DP methods assume **complete knowledge of the environment** (the transition probabilities $\mathbf{P}_{ss'}^a$ and rewards $\mathbf{R}_{ss'}^a$), and use the Bellman equations as update rules to compute value functions and optimal policies.
+
+## Iterative Policy Evaluation
+
+**Goal:** Given a policy $\pi$, compute its state-value function $V^\pi$.
+
+We use the Bellman expectation equation as an **iterative update rule**. Starting from an arbitrary initial value function, we repeatedly apply the Bellman equation until convergence.
+
+### Algorithm: Iterative Policy Evaluation
+
+```
+Input: pi, the policy to be evaluated
+Initialize V(s) = 0, for all s in S+
+Repeat
+    delta <- 0
+    For each s in S:
+        v <- V(s)
+        V(s) <- sum_a pi(s,a) sum_s' P^a_ss' [R^a_ss' + gamma * V(s')]
+        delta <- max(delta, |v - V(s)|)
+until delta < theta (a small positive number)
+Output V approx V^pi
+```
+
+In mathematical notation, the update is:
+
+$$
+V(s) \leftarrow \sum_{a} \pi(s, a) \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma V(s')\right]
+$$
+
+**How it works:**
+1. Initialize all state values to zero (or any arbitrary values)
+2. Sweep through every state
+3. For each state, update its value using the current values of successor states
+4. Track the maximum change ($\Delta$)
+5. Stop when the maximum change is below a threshold $\theta$
+
+**Convergence:** The sequence $V_0, V_1, V_2, \ldots$ converges to $V^\pi$ as $k \to \infty$. This is guaranteed because the Bellman operator is a **contraction mapping**.
+
+### Example: Small Gridworld
+
+Consider a 4x4 gridworld:
+- **States:** 1 through 14 (nonterminal), plus one terminal state (top-left and bottom-right corners, shown as shaded)
+- **Actions:** north, south, east, west (deterministic)
+- **Reward:** -1 on all transitions until the terminal state
+- **Undiscounted** ($\gamma = 1$)
+- **Policy:** equiprobable random (each action has probability 0.25)
+
+Starting from $V_0(s) = 0$ for all states:
+
+**Iteration $k=1$:** Every state gets value -1.0 (one step of reward -1, all next states have value 0 except terminal)
+
+**Iteration $k=2$:** States near the terminal get -1.7 to -2.0 (corners near terminal are updated first in the sweep)
+
+**Iteration $k=3$:** Values continue to decrease, with states far from terminal getting more negative
+
+**Iteration $k=10$:** The greedy policy with respect to $V_{10}$ is already the **optimal policy** (pointing toward the nearest terminal state), even though $V_{10}$ has not fully converged
+
+**At convergence ($k = \infty$):** Values reflect the expected number of steps to reach the terminal state under the random policy. The center states have the most negative values.
+
+This example shows that **the greedy policy can become optimal long before the value function converges**.
+
+## Policy Improvement
+
+Given a computed value function $V^\pi$ for a deterministic policy $\pi$, we want to know: could we do better?
+
+For a given state $s$, would it be better to take an action $a \neq \pi(s)$?
+
+The value of taking action $a$ in state $s$ and then following $\pi$ is:
+
+$$
+Q^\pi(s, a) = E_\pi\{r_{t+1} + \gamma V^\pi(s_{t+1}) \mid s_t = s, a_t = a\} = \sum_{s'} \mathbf{P}_{ss'}^{a}\left[\mathbf{R}_{ss'}^{a} + \gamma V^\pi(s')\right]
+$$
+
+### Policy Improvement Theorem
+
+It is better to switch to action $a$ for state $s$ if and only if:
+
+$$
+Q^\pi(s, a) > V^\pi(s)
+$$
+
+If this holds, then taking $a$ in $s$ and following $\pi$ thereafter yields a better return than just following $\pi$ everywhere.
+
+### Greedy Policy Construction
+
+Do this for **all states** to get a new policy $\pi'$ that is **greedy** with respect to $V^\pi$:
+
+$$
+\pi'(s) = \arg\max_a Q^\pi(s, a) = \arg\max_a \sum_{s'} \mathbf{P}_{ss'}^{a}\left[\mathbf{R}_{ss'}^{a} + \gamma V^\pi(s')\right]
+$$
+
+**Guarantee:** The new policy is at least as good as the old one:
+
+$$
+V^{\pi'}(s) \geq V^\pi(s) \quad \text{for all } s \in S
+$$
+
+If $V^{\pi'} = V^\pi$, then both policies are optimal.
+
+## Policy Iteration
+
+**Policy Iteration** alternates between evaluating a policy and improving it:
+
+$$
+\pi_0 \xrightarrow{E} V^{\pi_0} \xrightarrow{I} \pi_1 \xrightarrow{E} V^{\pi_1} \xrightarrow{I} \cdots \xrightarrow{} \pi^* \xrightarrow{E} V^* \xrightarrow{I} \pi^*
+$$
+
+where $\xrightarrow{E}$ denotes policy **evaluation** and $\xrightarrow{I}$ denotes policy **improvement** ("greedification").
+
+### Algorithm: Policy Iteration
+
+```
+1. Initialization
+   V(s) in R and pi(s) in A(s) arbitrarily for all s in S
+
+2. Policy Evaluation
+   Repeat
+       delta <- 0
+       For each s in S:
+           v <- V(s)
+           V(s) <- sum_s' P^pi(s)_ss' [R^pi(s)_ss' + gamma * V(s')]
+           delta <- max(delta, |v - V(s)|)
+   until delta < theta (a small positive number)
+
+3. Policy Improvement
+   policy-stable <- true
+   For each s in S:
+       b <- pi(s)
+       pi(s) <- argmax_a sum_s' P^a_ss' [R^a_ss' + gamma * V(s')]
+       If b != pi(s), then policy-stable <- false
+   If policy-stable, then stop; else go to 2
+```
+
+**Key properties:**
+- Each iteration of policy evaluation converges to $V^\pi$
+- Each policy improvement step produces a strictly better policy (or is already optimal)
+- Since there are finitely many deterministic policies in a finite MDP, the process must converge to $\pi^*$ in a finite number of iterations
+- In practice, convergence is often surprisingly fast
+
+## Value Iteration
+
+Value iteration combines policy evaluation and improvement into a single update. Instead of fully evaluating a policy before improving, we do **one sweep** of evaluation and immediately take the greedy action.
+
+The update rule is the **Bellman optimality equation** used as an update:
+
+$$
+V(s) \leftarrow \max_{a \in A(s)} \sum_{s'} \mathbf{P}_{ss'}^{a} \left[\mathbf{R}_{ss'}^{a} + \gamma V(s')\right]
+$$
+
+### Algorithm: Value Iteration
+
+```
+Initialize V(s) arbitrarily, e.g., V(s) = 0 for all s in S+
+Repeat
+    delta <- 0
+    For each s in S:
+        v <- V(s)
+        V(s) <- max_a sum_s' P^a_ss' [R^a_ss' + gamma * V(s')]
+        delta <- max(delta, |v - V(s)|)
+until delta < theta
+
+Output deterministic policy pi, where:
+    pi(s) = argmax_a sum_s' P^a_ss' [R^a_ss' + gamma * V(s')]
+```
+
+**Key insight:** Value iteration is equivalent to policy iteration where policy evaluation is truncated to **a single sweep**. It converges to $V^*$ directly.
+
+## Generalized Policy Iteration (GPI)
+
+**Generalized Policy Iteration (GPI)** is the general idea of any interaction of policy evaluation and policy improvement, independent of their granularity.
+
+The two processes compete and cooperate:
+- **Evaluation** makes the value function consistent with the current policy ($V \to V^\pi$)
+- **Improvement** makes the policy greedy with respect to the current value function ($\pi \to \text{greedy}(V)$)
+
+These two forces converge to the **optimal policy and optimal value function**: $\pi^* \Leftrightarrow V^*$.
+
+The geometric metaphor: evaluation and improvement can be seen as two projections in a space. Evaluation projects onto the line where $V = V^\pi$. Improvement projects onto the line where $\pi = \text{greedy}(V)$. The fixed point where both lines meet is $(\pi^*, V^*)$.
+
+Almost **every RL algorithm** can be described as a form of GPI.
+
+## Comparison: Policy Iteration vs Value Iteration
+
+| Feature | Policy Iteration | Value Iteration |
+|---------|-----------------|-----------------|
+| **Evaluation** | Full convergence | Single sweep |
+| **Improvement** | After evaluation converges | Implicit in update |
+| **Per iteration cost** | Higher (many sweeps) | Lower (one sweep) |
+| **Number of iterations** | Fewer | More |
+| **Overall** | Often faster for small MDPs | Often faster for large MDPs |
+| **Converges to** | $\pi^*, V^*$ | $V^*$ (extract $\pi^*$ at end) |
+
+## Limitations of Dynamic Programming
+
+DP methods require:
+- **Complete knowledge** of the environment model ($\mathbf{P}_{ss'}^a$ and $\mathbf{R}_{ss'}^a$)
+- **Computation** proportional to the number of states (can be intractable for large state spaces)
+
+These limitations motivate **model-free** methods like Monte Carlo and Temporal Difference learning, which learn from experience without needing a model.
+
+## Key Takeaway
+
+> Dynamic Programming provides exact solutions to MDPs when the model is known. Policy iteration alternates full evaluation and improvement; value iteration combines them into a single max-based update. Both converge to optimal policies, and the GPI framework they embody is the template for nearly all RL algorithms.

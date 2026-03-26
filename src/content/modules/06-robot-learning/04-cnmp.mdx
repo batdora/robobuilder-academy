@@ -1,0 +1,157 @@
+---
+title: "Conditional Neural Movement Primitives"
+lessonId: "robot-learning-04-cnmp"
+moduleId: "06-robot-learning"
+order: 4
+xpReward: 250
+isBonus: true
+requiresParts: []
+journalEntry: "NEURAL MOVEMENT PRIMITIVES ONLINE. Encoding trajectories as distributions -- conditioning on observations to generate new movements."
+---
+
+# Conditional Neural Movement Primitives (CNMP)
+
+**Conditional Neural Movement Primitives** (Seker et al., RSS 2019) combine the strengths of Conditional Neural Processes (CNPs) with movement primitive representations. CNMPs can learn from multiple demonstrations, generalize to new task parameters, and provide uncertainty estimates -- addressing key limitations of DMPs and GMMs.
+
+## Background: Conditional Neural Processes (CNP)
+
+A **Conditional Neural Process** learns a distribution over functions from a set of **context points** (observations) and makes predictions at **query points**.
+
+Given:
+- **Context set** $C = \{(x_i, y_i)\}_{i=1}^{n_c}$: observed input-output pairs
+- **Query input** $x_q$: the point where we want a prediction
+
+The CNP predicts $P(y_q | x_q, C)$.
+
+### CNP Architecture
+
+**Step 1: Encode each context point:**
+
+$$
+\mathbf{r}_i = h_\theta(x_i, y_i) \quad \text{(encoder network)}
+$$
+
+where $h_\theta$ is a neural network that maps each context pair to a representation $\mathbf{r}_i$.
+
+**Step 2: Aggregate representations:**
+
+$$
+\mathbf{r} = \frac{1}{n_c} \sum_{i=1}^{n_c} \mathbf{r}_i \quad \text{(order-invariant aggregation)}
+$$
+
+The mean aggregation ensures the representation is **permutation invariant** with respect to the context set.
+
+**Step 3: Decode at query point:**
+
+$$
+(\mu_q, \sigma_q) = g_\phi(x_q, \mathbf{r}) \quad \text{(decoder / query network)}
+$$
+
+The decoder outputs a mean $\mu_q$ and standard deviation $\sigma_q$, parameterizing a Gaussian:
+
+$$
+P(y_q | x_q, C) = \mathcal{N}(y_q \mid \mu_q, \sigma_q^2)
+$$
+
+## From CNP to CNMP
+
+CNMP applies the CNP framework specifically to **robot movement trajectories**:
+
+- **Context points** are observations along demonstrated trajectories: $(t_i, \mathbf{SM}(t_i), \gamma)$
+  - $t_i$: time step
+  - $\mathbf{SM}(t_i)$: sensorimotor state at time $t_i$ (joint angles, positions, etc.)
+  - $\gamma$: task parameter (e.g., target object position)
+
+- **Query points** are times at which we want to predict the trajectory
+
+### CNMP Architecture
+
+$$
+\text{Observations} \xrightarrow{\text{Encoder Net}} \mathbf{r}_i \xrightarrow{\text{Avg}} \mathbf{r} \xrightarrow{\text{Query Net}} (\boldsymbol{\mu}_q, \boldsymbol{\sigma}_q)
+$$
+
+**Encoder Network** takes $(t_i, \mathbf{SM}(t_i), \gamma)$ and outputs representation $\mathbf{r}_i$.
+
+**Aggregation** computes $\mathbf{r} = \frac{1}{n_c}\sum_i \mathbf{r}_i$.
+
+**Query Network** takes $(t_q, \gamma, \mathbf{r})$ and outputs $(\boldsymbol{\mu}_q, \boldsymbol{\sigma}_q)$.
+
+### Training
+
+Training data consists of trajectory demonstrations. During training:
+
+1. Randomly sample context points from a trajectory
+2. Randomly sample query points from the same trajectory
+3. Minimize the negative log-likelihood:
+
+$$
+\mathcal{L} = -\sum_{q} \log \mathcal{N}(\mathbf{y}_q \mid \boldsymbol{\mu}_q, \text{diag}(\boldsymbol{\sigma}_q^2))
+$$
+
+By randomly varying the number and position of context points during training, the model learns to make predictions from **any subset** of observations.
+
+## Generating Movement Primitives
+
+At test time, to generate a full trajectory:
+
+1. **Provide context:** Give a set of observations (e.g., start position, goal position, via-points)
+2. **Query all time steps:** $t_0, t_1, t_2, \ldots, t_n$
+3. **Collect predictions:** Each query returns $(\boldsymbol{\mu}_q, \boldsymbol{\sigma}_q)$
+
+The result is a complete trajectory with uncertainty at each time step. High uncertainty indicates regions where the model is less confident (fewer nearby context points or more demonstration variability).
+
+## Task-Parameterized Conditioning
+
+A key advantage of CNMP: the task parameter $\gamma$ allows conditioning on different task configurations:
+
+$$
+P(\mathbf{y}_q \mid t_q, \gamma, C)
+$$
+
+For example, $\gamma$ could encode:
+- Target object position
+- Obstacle location
+- Desired grasp type
+
+The same trained model generates different trajectories for different task parameters -- no re-training needed.
+
+## Via-Point Conditioning
+
+CNMP naturally supports **via-point** conditioning. By including desired intermediate points in the context set:
+
+$$
+C = \{(t_{\text{start}}, \mathbf{y}_{\text{start}}), (t_{\text{via}}, \mathbf{y}_{\text{via}}), (t_{\text{goal}}, \mathbf{y}_{\text{goal}})\}
+$$
+
+The generated trajectory will pass through (or near) these via-points. The predicted distribution shows:
+- **Low uncertainty** near context points (the model is confident about these)
+- **Higher uncertainty** between context points (the model interpolates)
+
+## CNMP vs DMPs vs GMMs
+
+| Feature | DMP | GMM/GMR | CNMP |
+|---------|-----|---------|------|
+| Demonstrations needed | 1 | Multiple | Multiple |
+| Uncertainty estimates | No | Yes (variance) | Yes ($\sigma$) |
+| Task parameters | Limited (goal only) | TP-GMM | Naturally handled ($\gamma$) |
+| Via-point conditioning | Difficult | Possible | Natural |
+| Representation | Basis function weights | Gaussian components | Neural network |
+| Generalization | Goal adaptation | Frame adaptation | Full conditioning |
+
+## Worked Example: CNMP Trajectory Generation
+
+A CNMP is trained on 50 demonstrations of a reaching task with varying goal positions.
+
+**Context at test time:**
+- $(t = 0, \mathbf{y} = [0, 0], \gamma = [3, 2])$ -- start position with goal at $(3, 2)$
+- $(t = 0.5, \mathbf{y} = [1.5, 1.5])$ -- desired via-point
+
+**Querying:**
+- At $t = 0$: $\boldsymbol{\mu}_q \approx [0, 0]$, $\boldsymbol{\sigma}_q \approx [0.01, 0.01]$ (very confident, near context)
+- At $t = 0.25$: $\boldsymbol{\mu}_q \approx [0.7, 0.8]$, $\boldsymbol{\sigma}_q \approx [0.1, 0.1]$ (less confident, between context points)
+- At $t = 0.5$: $\boldsymbol{\mu}_q \approx [1.5, 1.5]$, $\boldsymbol{\sigma}_q \approx [0.02, 0.02]$ (confident, near via-point)
+- At $t = 1.0$: $\boldsymbol{\mu}_q \approx [3.0, 2.0]$, $\boldsymbol{\sigma}_q \approx [0.15, 0.15]$ (moderate confidence, extrapolating from context)
+
+## Key Takeaway
+
+> CNMP combines Conditional Neural Processes with movement primitives to learn trajectory distributions from multiple demonstrations. The encoder-aggregator-decoder architecture provides predictions with uncertainty estimates and naturally supports task parameterization and via-point conditioning. CNMP addresses key limitations of both DMPs (single demonstration, no uncertainty) and GMMs (limited generalization), offering a flexible neural framework for learning from demonstration.

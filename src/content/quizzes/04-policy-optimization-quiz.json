@@ -1,0 +1,288 @@
+{
+  "quizId": "quiz-04-policy-optimization",
+  "moduleId": "04-policy-optimization",
+  "title": "Policy Optimization Quiz",
+  "xpReward": 300,
+  "questions": [
+    {
+      "id": "q1-why-policy-based",
+      "type": "multiple-choice",
+      "question": "Which of the following is NOT an advantage of policy-based methods over value-based methods?",
+      "options": [
+        "They naturally handle continuous action spaces",
+        "They can represent stochastic policies",
+        "They always have lower variance gradient estimates than value-based methods",
+        "They avoid the need to solve argmax over actions"
+      ],
+      "correctIndex": 2,
+      "explanation": "Policy gradient methods actually suffer from HIGH variance, which is one of their main disadvantages. The advantages are: handling continuous actions, stochastic policies, and avoiding the argmax problem.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q2-log-derivative-trick",
+      "type": "multiple-choice",
+      "question": "In the likelihood ratio policy gradient, the identity nabla_theta P(tau;theta) / P(tau;theta) = nabla_theta log P(tau;theta) is known as:",
+      "options": [
+        "The Bellman trick",
+        "The log-derivative trick (score function trick)",
+        "The reparameterization trick",
+        "The importance sampling trick"
+      ],
+      "correctIndex": 1,
+      "explanation": "The log-derivative trick (also called the score function trick or REINFORCE trick) uses the identity that nabla log f(x) = nabla f(x) / f(x), allowing us to convert the gradient of an expectation into an expectation of a gradient.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q3-dynamics-cancel",
+      "type": "multiple-choice",
+      "question": "Why does the dynamics model P(s'|s,a) cancel out in the policy gradient computation?",
+      "options": [
+        "Because we assume deterministic dynamics",
+        "Because when we take nabla_theta of log P(tau;theta), the transition probabilities do not depend on theta",
+        "Because we use importance sampling to remove dynamics terms",
+        "Because the baseline subtraction eliminates dynamics terms"
+      ],
+      "correctIndex": 1,
+      "explanation": "When we decompose log P(tau;theta) = log P(s0) + sum[log P(s_{t+1}|s_t,u_t) + log pi_theta(u_t|s_t)], only the policy terms log pi_theta(u_t|s_t) depend on theta. Taking nabla_theta eliminates the dynamics and initial state terms.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q4-gradient-estimate",
+      "type": "multiple-choice",
+      "question": "The policy gradient estimate g_hat = (1/m) sum_i nabla_theta log P(tau^(i); theta) R(tau^(i)) is:",
+      "options": [
+        "Biased with low variance",
+        "Unbiased with low variance",
+        "Biased with high variance",
+        "Unbiased with high variance"
+      ],
+      "correctIndex": 3,
+      "explanation": "The likelihood ratio gradient estimate is UNBIASED (E[g_hat] = nabla_theta U(theta)) but has VERY HIGH VARIANCE, which is the main challenge motivating baselines, temporal structure, and GAE.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q5-baseline-bias",
+      "type": "multiple-choice",
+      "question": "When we subtract a baseline b from the return in the policy gradient, why does this not introduce bias?",
+      "options": [
+        "Because the baseline is always zero in expectation",
+        "Because E[nabla_theta log P(tau;theta) * b] = b * nabla_theta(sum_tau P(tau;theta)) = b * nabla_theta(1) = 0",
+        "Because the baseline cancels out in the advantage function",
+        "Because we only use baselines that are equal to the true value function"
+      ],
+      "correctIndex": 1,
+      "explanation": "The proof shows that E[nabla_theta log P(tau;theta) * b] = sum_tau nabla_theta P(tau;theta) * b = b * nabla_theta(1) = 0, since the probabilities of all trajectories always sum to 1. This holds for ANY baseline b that does not depend on the action.",
+      "bloomLevel": "apply"
+    },
+    {
+      "id": "q6-best-baseline",
+      "type": "multiple-choice",
+      "question": "Which baseline choice is generally considered best in practice for variance reduction?",
+      "options": [
+        "Constant baseline b = E[R(tau)]",
+        "Zero baseline (no baseline)",
+        "State-dependent expected return b(s_t) = V^pi(s_t)",
+        "Time-dependent baseline b_t = average future return at time t"
+      ],
+      "correctIndex": 2,
+      "explanation": "The state-dependent value function V^pi(s_t) is the best practical choice. It makes the gradient proportional to the ADVANTAGE: how much better an action is compared to the expected return from that state. This provides the most informative gradient signal.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q7-temporal-structure",
+      "type": "multiple-choice",
+      "question": "Exploiting temporal structure in the policy gradient means:",
+      "options": [
+        "Using recurrent neural networks for the policy",
+        "Weighting each action's gradient by only future rewards (reward-to-go), not past rewards",
+        "Collecting longer trajectories for better estimates",
+        "Using discount factors to weight recent transitions more"
+      ],
+      "correctIndex": 1,
+      "explanation": "Temporal structure means recognizing that action u_t at time t cannot influence rewards at times 0, 1, ..., t-1. Removing these past reward terms reduces variance without introducing bias.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q8-td-error-advantage",
+      "type": "multiple-choice",
+      "question": "The TD error delta_t = r_t + gamma * V(s_{t+1}) - V(s_t) is an estimate of:",
+      "options": [
+        "The state value V^pi(s_t)",
+        "The action value Q^pi(s_t, a_t)",
+        "The advantage A^pi(s_t, a_t)",
+        "The return R(tau)"
+      ],
+      "correctIndex": 2,
+      "explanation": "E[delta_t | s_t, a_t] = E[r_t + gamma V^pi(s_{t+1}) | s_t, a_t] - V^pi(s_t) = Q^pi(s_t, a_t) - V^pi(s_t) = A^pi(s_t, a_t). The TD error is an unbiased estimate of the advantage (when V is exact).",
+      "bloomLevel": "apply"
+    },
+    {
+      "id": "q9-gae-formula",
+      "type": "multiple-choice",
+      "question": "The GAE(gamma, lambda) advantage estimate is given by:",
+      "options": [
+        "A_hat_t = delta_t + gamma * delta_{t+1}",
+        "A_hat_t = sum_{l=0}^{infinity} (gamma * lambda)^l * delta_{t+l}",
+        "A_hat_t = (1-lambda) * sum_{k=1}^{infinity} gamma^k * delta_{t+k}",
+        "A_hat_t = lambda * delta_t + (1-lambda) * R_t"
+      ],
+      "correctIndex": 1,
+      "explanation": "GAE(gamma, lambda) = sum_{l=0}^{infinity} (gamma*lambda)^l * delta_{t+l}, which is an exponentially-weighted sum of TD residuals. This elegantly interpolates between 1-step TD (lambda=0) and full MC (lambda=1).",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q10-gae-lambda-zero",
+      "type": "multiple-choice",
+      "question": "When lambda = 0 in GAE(gamma, lambda), the advantage estimate becomes:",
+      "options": [
+        "The full Monte Carlo return minus V(s_t)",
+        "The 1-step TD error: delta_t = r_t + gamma * V(s_{t+1}) - V(s_t)",
+        "Zero for all timesteps",
+        "The discounted sum of all rewards"
+      ],
+      "correctIndex": 1,
+      "explanation": "With lambda = 0, GAE reduces to A_hat_t = (gamma*0)^0 * delta_t = delta_t, which is the 1-step TD error. This has low variance but high bias (relies heavily on the accuracy of V).",
+      "bloomLevel": "apply"
+    },
+    {
+      "id": "q11-gae-lambda-one",
+      "type": "multiple-choice",
+      "question": "When lambda = 1 in GAE(gamma, lambda), the advantage estimate is equivalent to:",
+      "options": [
+        "The 1-step TD error",
+        "The n-step return with n=2",
+        "The full discounted Monte Carlo return minus V(s_t)",
+        "The natural gradient"
+      ],
+      "correctIndex": 2,
+      "explanation": "With lambda = 1, GAE becomes sum_{l=0}^{infinity} gamma^l * delta_{t+l} = sum gamma^l r_{t+l} - V(s_t), which is the full MC return minus the value baseline. High variance but no bias from bootstrapping.",
+      "bloomLevel": "apply"
+    },
+    {
+      "id": "q12-step-size-rl-vs-sl",
+      "type": "multiple-choice",
+      "question": "Why are step sizes more critical in RL than in supervised learning?",
+      "options": [
+        "Because RL loss functions are always non-convex",
+        "Because in RL, a bad step leads to a bad policy which collects bad data, making recovery difficult",
+        "Because RL uses larger batch sizes",
+        "Because the reward function changes over time"
+      ],
+      "correctIndex": 1,
+      "explanation": "In supervised learning, stepping too far is recoverable because the dataset is fixed. In RL, a bad policy step means the NEXT batch of data is collected under a terrible policy, creating a vicious cycle. Recovery requires going back and shrinking the step.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q13-fisher-information",
+      "type": "multiple-choice",
+      "question": "The Fisher Information Matrix F(theta) is defined as:",
+      "options": [
+        "F(theta) = E[nabla_theta J(theta) * nabla_theta J(theta)^T]",
+        "F(theta) = E[nabla_theta log pi_theta(a|s) * nabla_theta log pi_theta(a|s)^T]",
+        "F(theta) = nabla_theta^2 J(theta) (the Hessian of J)",
+        "F(theta) = E[nabla_theta pi_theta(a|s) * nabla_theta pi_theta(a|s)^T]"
+      ],
+      "correctIndex": 1,
+      "explanation": "The FIM is the expected outer product of score functions: F(theta) = E[nabla_theta log pi_theta(a|s) * nabla_theta log pi_theta(a|s)^T]. It captures the local curvature of the policy distribution and is used for the natural gradient.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q14-natural-gradient",
+      "type": "multiple-choice",
+      "question": "The natural policy gradient is defined as:",
+      "options": [
+        "nabla_theta J(theta)",
+        "F(theta) * nabla_theta J(theta)",
+        "F(theta)^{-1} * nabla_theta J(theta)",
+        "nabla_theta log pi_theta(a|s) * Q(s,a)"
+      ],
+      "correctIndex": 2,
+      "explanation": "The natural gradient is F^{-1} * nabla_theta J(theta), where F is the Fisher Information Matrix. It gives the steepest ascent direction in policy distribution space (as measured by KL divergence) rather than in Euclidean parameter space.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q15-trpo-surrogate",
+      "type": "multiple-choice",
+      "question": "The TRPO surrogate objective maximizes E_{pi_old}[pi(a|s)/pi_old(a|s) * A^{pi_old}(s,a)] subject to:",
+      "options": [
+        "||theta - theta_old||_2 <= epsilon",
+        "E[KL(pi_old || pi)] <= epsilon",
+        "|pi(a|s) - pi_old(a|s)| <= epsilon for all s, a",
+        "The entropy of pi must exceed a minimum threshold"
+      ],
+      "correctIndex": 1,
+      "explanation": "TRPO constrains the average KL divergence between old and new policies: E_{pi_old}[KL(pi_old(.|s) || pi(.|s))] <= epsilon. This ensures the new policy stays close to the old one in distribution space.",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q16-trpo-cg",
+      "type": "multiple-choice",
+      "question": "In TRPO, the Conjugate Gradient (CG) method is used to:",
+      "options": [
+        "Compute the policy gradient g",
+        "Compute F^{-1}g without explicitly forming or inverting the Fisher matrix F",
+        "Compute the KL divergence between policies",
+        "Optimize the value function parameters"
+      ],
+      "correctIndex": 1,
+      "explanation": "CG solves Fx = g for x = F^{-1}g by only using Fisher-vector products Fv (which can be computed efficiently via automatic differentiation), avoiding the O(n^3) cost of explicitly inverting the Fisher matrix.",
+      "bloomLevel": "understand"
+    },
+    {
+      "id": "q17-ppo-clip-formula",
+      "type": "multiple-choice",
+      "question": "The PPO clipped objective is L^CLIP = E_t[min(r_t(theta)*A_hat_t, clip(r_t(theta), 1-eps, 1+eps)*A_hat_t)]. What is r_t(theta)?",
+      "options": [
+        "The reward at time t",
+        "The discount factor gamma^t",
+        "The probability ratio pi_theta(a_t|s_t) / pi_{theta_old}(a_t|s_t)",
+        "The advantage A(s_t, a_t)"
+      ],
+      "correctIndex": 2,
+      "explanation": "r_t(theta) is the probability ratio between the new and old policies for the action taken. At theta = theta_old, r_t = 1. The clipping constrains this ratio to [1-eps, 1+eps].",
+      "bloomLevel": "remember"
+    },
+    {
+      "id": "q18-ppo-clip-positive-A",
+      "type": "multiple-choice",
+      "question": "In PPO, when the advantage A_hat > 0 and the ratio r_t(theta) > 1 + epsilon, what happens?",
+      "options": [
+        "The objective increases without bound, encouraging the ratio to grow further",
+        "The objective is clipped: the gradient becomes zero, preventing the policy from becoming too greedy",
+        "The advantage is set to zero",
+        "The update is rejected entirely"
+      ],
+      "correctIndex": 1,
+      "explanation": "When A > 0 and r > 1+eps, the clipped term (1+eps)*A < r*A, so min takes the clipped value. The gradient w.r.t. theta is zero beyond the clip point, preventing the policy from making the action too much more likely than it was under the old policy.",
+      "bloomLevel": "analyze"
+    },
+    {
+      "id": "q19-ppo-vs-trpo",
+      "type": "multiple-choice",
+      "question": "Which of the following is a key advantage of PPO over TRPO?",
+      "options": [
+        "PPO has stronger theoretical guarantees of monotonic improvement",
+        "PPO can use standard first-order optimizers like Adam and supports parameter sharing between policy and value function",
+        "PPO computes the exact KL divergence more efficiently",
+        "PPO does not require advantage estimation"
+      ],
+      "correctIndex": 1,
+      "explanation": "PPO's main advantage is simplicity: it uses standard optimizers (Adam, SGD) instead of CG, does not need to compute KL divergence, and easily supports parameter sharing. TRPO actually has stronger theoretical guarantees, but PPO matches its empirical performance with much simpler code.",
+      "bloomLevel": "analyze"
+    },
+    {
+      "id": "q20-kl-dynamics-cancel",
+      "type": "multiple-choice",
+      "question": "When computing KL(P(tau;theta) || P(tau;theta+delta_theta)) over trajectory distributions, the dynamics model P(s'|s,a):",
+      "options": [
+        "Must be estimated from data",
+        "Cancels out, leaving only the ratio of policy probabilities",
+        "Must be differentiated using the reparameterization trick",
+        "Adds a constant that depends on the horizon H"
+      ],
+      "correctIndex": 1,
+      "explanation": "Since both trajectory distributions share the same dynamics P(s'|s,a) and initial state P(s0), these terms cancel in the KL divergence ratio. The KL reduces to approximately (1/M) sum log[pi_theta(u|s) / pi_{theta+delta_theta}(u|s)] over sampled (s,u) pairs.",
+      "bloomLevel": "understand"
+    }
+  ]
+}

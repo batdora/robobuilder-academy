@@ -1,0 +1,249 @@
+---
+title: "Proximal Policy Optimization (PPO)"
+lessonId: "pg-08-ppo"
+moduleId: "04-policy-optimization"
+order: 8
+xpReward: 300
+robotPart: "SAFETY_GOVERNOR"
+requiresParts: ["MOTOR_CORTEX"]
+journalEntry: "SAFETY_GOVERNOR online. The robot now clips its own ambition -- constraining each learning step to prevent catastrophic updates. Stable. Reliable. Ready for deployment."
+---
+
+# Proximal Policy Optimization (PPO)
+
+PPO (Schulman et al., 2017) achieves performance comparable to TRPO with a **much simpler implementation**. Instead of solving a constrained optimization with conjugate gradient, PPO uses a **clipped surrogate objective** that can be optimized with standard first-order methods like Adam.
+
+## Motivation: A Better TRPO?
+
+TRPO works well, but has practical limitations:
+
+1. **Not easy to enforce the trust region constraint** for complex policy architectures (e.g., networks with dropout, or parameter sharing between policy and value function)
+2. **Conjugate gradient implementation is complex** -- requires careful Fisher-vector products
+3. **Would be good to harness standard first-order optimizers** like Adam, RMSProp, which have been highly tuned for deep learning
+
+PPO addresses all three issues.
+
+## PPO Version 1: "Dual Descent TRPO" (PPO-Penalty)
+
+The first version of PPO converts the constrained optimization into an unconstrained one using a **penalty term**:
+
+**TRPO (constrained):**
+
+$$
+\max_\theta \; \hat{\mathbb{E}}_t\left[\frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{\text{old}}}(a_t | s_t)} \hat{A}_t\right] \quad \text{subject to} \quad \hat{\mathbb{E}}_t\left[D_{KL}(\pi_{\theta_{\text{old}}}(\cdot | s_t) \| \pi_\theta(\cdot | s_t))\right] \leq \delta
+$$
+
+**PPO v1 (penalized):**
+
+$$
+\max_\theta \; \hat{\mathbb{E}}_t\left[\frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{\text{old}}}(a_t | s_t)} \hat{A}_t\right] - \beta \left(\hat{\mathbb{E}}_t\left[D_{KL}(\pi_{\theta_{\text{old}}}(\cdot | s_t), \pi_\theta(\cdot | s_t))\right] - \delta\right)
+$$
+
+where $\beta$ is a Lagrange multiplier that is **adaptively updated**:
+- If KL divergence > $\delta$: increase $\beta$ (penalize more)
+- If KL divergence < $\delta$: decrease $\beta$ (penalize less)
+
+### PPO v1 Algorithm
+
+> **for** iteration $= 1, 2, \ldots$ **do**
+> 1. Run policy for $T$ timesteps or $N$ trajectories
+> 2. Estimate advantage function at all timesteps
+> 3. Do SGD on the penalized objective for several epochs
+> 4. Do dual descent update for $\beta$:
+>    - If $D_{KL} > 1.5\delta$: $\beta \leftarrow 2\beta$
+>    - If $D_{KL} < \delta / 1.5$: $\beta \leftarrow \beta / 2$
+> **end for**
+
+This is simpler than TRPO but still requires computing the KL divergence and tuning $\beta$.
+
+## PPO Version 2: "Clipped Surrogate Loss" (PPO-Clip)
+
+The more widely used version of PPO uses a **clipped surrogate objective** that requires no KL divergence computation at all.
+
+### The Probability Ratio
+
+Define the probability ratio:
+
+$$
+r_t(\theta) = \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{\text{old}}}(a_t | s_t)}
+$$
+
+Note that $r_t(\theta_{\text{old}}) = 1$ (at the old parameters, the ratio is 1).
+
+### The Clipped Objective
+
+$$
+L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\left[\min\left(r_t(\theta)\hat{A}_t, \;\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]
+$$
+
+where $\epsilon$ is a hyperparameter, typically $\epsilon = 0.2$.
+
+The $\text{clip}$ function restricts the ratio:
+
+$$
+\text{clip}(r, 1-\epsilon, 1+\epsilon) = \begin{cases} 1-\epsilon & \text{if } r < 1-\epsilon \\ r & \text{if } 1-\epsilon \leq r \leq 1+\epsilon \\ 1+\epsilon & \text{if } r > 1+\epsilon \end{cases}
+$$
+
+### How Clipping Works: Case Analysis
+
+The $\min$ in the objective takes the **more pessimistic** (lower) estimate between the unclipped and clipped objectives. Let us analyze all cases:
+
+**Case 1: Positive advantage ($\hat{A}_t > 0$) -- "Good action"**
+
+The unclipped term $r_t(\theta)\hat{A}_t$ increases as $r_t$ increases (we want to make this good action more likely). But the clipped term caps the benefit:
+
+$$
+L = \min\left(r_t \hat{A}_t, \; (1+\epsilon) \hat{A}_t\right) \quad \text{when } r_t > 1+\epsilon
+$$
+
+So even if we make the action *much* more likely ($r_t \gg 1$), the objective only counts it as $r_t = 1 + \epsilon$. This prevents us from becoming too greedy.
+
+**Case 2: Negative advantage ($\hat{A}_t < 0$) -- "Bad action"**
+
+The unclipped term $r_t(\theta)\hat{A}_t$ becomes less negative (i.e., the objective increases) as $r_t$ decreases (we want to make this bad action less likely). But the clipped term caps the benefit:
+
+$$
+L = \min\left(r_t \hat{A}_t, \; (1-\epsilon) \hat{A}_t\right) \quad \text{when } r_t < 1-\epsilon
+$$
+
+So even if we drastically reduce the action probability ($r_t \ll 1$), the objective only counts it as $r_t = 1 - \epsilon$.
+
+### Visual Summary of Clipping Behavior
+
+For **positive advantage** ($\hat{A} > 0$):
+- $r < 1$: Unclipped (allow decrease, it is informative)
+- $1 \leq r \leq 1+\epsilon$: Unclipped (in trust region)
+- $r > 1+\epsilon$: Clipped at $1+\epsilon$ (prevent excessive increase)
+
+For **negative advantage** ($\hat{A} < 0$):
+- $r > 1$: Unclipped (allow increase of ratio, since A is negative this decreases objective -- informative)
+- $1-\epsilon \leq r \leq 1$: Unclipped (in trust region)
+- $r < 1-\epsilon$: Clipped at $1-\epsilon$ (prevent excessive decrease)
+
+**The net effect:** The policy ratio is effectively kept within $[1-\epsilon, 1+\epsilon]$ for the purpose of the objective, which implicitly constrains the KL divergence without computing it.
+
+## The Full PPO Algorithm
+
+> **Algorithm: PPO (Clipped)**
+>
+> **for** iteration $= 1, 2, \ldots$ **do**
+> 1. Run policy $\pi_{\theta_{\text{old}}}$ in the environment for $T$ timesteps, collecting $\{s_t, a_t, r_t, s_{t+1}\}$
+> 2. Compute advantage estimates $\hat{A}_1, \ldots, \hat{A}_T$ using GAE
+> 3. Compute returns: $\hat{R}_t = \hat{A}_t + V_\phi(s_t)$
+> 4. **for** epoch $= 1, \ldots, K$ **do** (typically $K = 3$ to $10$)
+>    - **for** each minibatch of transitions **do**
+>      - Compute probability ratios: $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$
+>      - Compute clipped objective:
+>        $L^{CLIP} = \frac{1}{|B|}\sum_{t \in B} \min(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t)$
+>      - Compute value function loss:
+>        $L^{VF} = \frac{1}{|B|}\sum_{t \in B}(V_\phi(s_t) - \hat{R}_t)^2$
+>      - (Optional) Compute entropy bonus:
+>        $S = \frac{1}{|B|}\sum_{t \in B} H(\pi_\theta(\cdot|s_t))$
+>      - Total loss: $L = -L^{CLIP} + c_1 L^{VF} - c_2 S$
+>      - Update $\theta$ and $\phi$ using Adam optimizer
+>    - **end for**
+> 5. **end for**
+> 6. Set $\theta_{\text{old}} \leftarrow \theta$
+> **end for**
+
+### Key Implementation Details
+
+- **Multiple epochs of SGD:** Unlike TRPO which takes a single large step, PPO takes many small gradient steps on the same batch of data. The clipping prevents the policy from drifting too far.
+- **Entropy bonus** ($c_2 S$): Encourages exploration by rewarding policies with higher entropy (more randomness).
+- **Shared network:** Policy and value function can share parameters (e.g., same CNN backbone for Atari), unlike TRPO where this is hard.
+
+## Why PPO is Simpler Than TRPO
+
+| Feature | TRPO | PPO-Clip |
+|---------|------|----------|
+| Optimization | Constrained (CG + line search) | Unconstrained (SGD/Adam) |
+| KL computation | Required (in constraint) | Not needed |
+| Second-order info | Fisher matrix via CG | None (first-order only) |
+| Implementation | ~200 lines of careful math | ~50 lines |
+| Multiple epochs | Single step per batch | Many epochs per batch |
+| Shared parameters | Difficult | Easy |
+| GPU utilization | Poor (sequential CG) | Excellent (standard batched SGD) |
+
+## PPO Hyperparameters
+
+| Hyperparameter | Typical Value | Role |
+|---------------|--------------|------|
+| $\epsilon$ (clip range) | 0.1 -- 0.3 | Controls trust region size |
+| $K$ (epochs per batch) | 3 -- 10 | Number of passes over data |
+| $T$ (timesteps per batch) | 2048 | Amount of data per iteration |
+| $\gamma$ (discount) | 0.99 | Future reward discount |
+| $\lambda$ (GAE parameter) | 0.95 | Bias-variance tradeoff |
+| $c_1$ (value coeff) | 0.5 | Weight of value function loss |
+| $c_2$ (entropy coeff) | 0.01 | Weight of entropy bonus |
+| Learning rate | $3 \times 10^{-4}$ | Adam step size |
+| Minibatch size | 64 | SGD minibatch size |
+
+## Real-World Applications of PPO
+
+PPO has become the **de facto standard** for many RL applications:
+
+### OpenAI Five (Dota 2)
+
+OpenAI's Dota 2 bot that defeated world champions was trained entirely with PPO. The system controlled 5 heroes in a complex, partially observable, multi-agent environment.
+
+### OpenAI In-Hand Re-Orientation
+
+A robotic hand (Shadow Dexterous Hand) learned to manipulate a Rubik's cube using PPO. The policy was trained in simulation with domain randomization and transferred to the real robot.
+
+### Robotic Locomotion
+
+PPO + GAE was used to train humanoid locomotion from scratch in physics simulators. Starting from a standing position (iteration 0), the humanoid learned to walk (iteration 320), run (iteration 640), and sprint (iteration 2000).
+
+### InstructGPT / RLHF
+
+PPO is the algorithm used in Reinforcement Learning from Human Feedback (RLHF), the technique that aligns large language models with human preferences.
+
+## Worked Example: PPO Clipping
+
+**Setup:** $\epsilon = 0.2$. Consider one time step with $\hat{A}_t = +3$ (good action).
+
+**Scenario A:** $r_t(\theta) = 1.5$ (new policy makes action 50% more likely)
+
+$$
+\text{Unclipped: } 1.5 \times 3 = 4.5
+$$
+$$
+\text{Clipped: } \text{clip}(1.5, 0.8, 1.2) \times 3 = 1.2 \times 3 = 3.6
+$$
+$$
+L = \min(4.5, 3.6) = 3.6
+$$
+
+The gradient is zero for the ratio beyond $1.2$ -- it does not help to make this action even more likely.
+
+**Scenario B:** $r_t(\theta) = 0.7$ (new policy makes action 30% less likely, but $A > 0$)
+
+$$
+\text{Unclipped: } 0.7 \times 3 = 2.1
+$$
+$$
+\text{Clipped: } \text{clip}(0.7, 0.8, 1.2) \times 3 = 0.8 \times 3 = 2.4
+$$
+$$
+L = \min(2.1, 2.4) = 2.1
+$$
+
+The unclipped term is used. The gradient encourages increasing $r_t$ back toward 1 (making the good action more likely again).
+
+**Scenario C:** $\hat{A}_t = -2$ (bad action), $r_t(\theta) = 0.5$
+
+$$
+\text{Unclipped: } 0.5 \times (-2) = -1.0
+$$
+$$
+\text{Clipped: } \text{clip}(0.5, 0.8, 1.2) \times (-2) = 0.8 \times (-2) = -1.6
+$$
+$$
+L = \min(-1.0, -1.6) = -1.6
+$$
+
+The clipped (more pessimistic) value is used. The policy cannot benefit from reducing $r_t$ below $0.8$.
+
+## Key Takeaway
+
+> **PPO** replaces TRPO's constrained optimization with a clipped surrogate objective: $L^{CLIP} = \mathbb{E}[\min(r_t\hat{A}_t, \text{clip}(r_t, 1-\epsilon, 1+\epsilon)\hat{A}_t)]$. The clipping prevents the probability ratio from moving too far from 1, implicitly maintaining a trust region. PPO is simple to implement, works with standard optimizers (Adam), supports parameter sharing, and achieves state-of-the-art performance. It is the most widely used policy gradient algorithm in practice, powering applications from game-playing AI to robotic manipulation to language model alignment.

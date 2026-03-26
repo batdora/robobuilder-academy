@@ -1,0 +1,214 @@
+---
+title: "Prioritized Experience Replay"
+lessonId: "dqn-08-prioritized-replay"
+moduleId: "03-deep-q-learning"
+order: 8
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN", "EYES", "GENERALIZATION_MODULE", "VISUAL_CORTEX"]
+---
+
+# Prioritized Experience Replay
+
+Uniform experience replay treats all transitions equally, but some transitions are far more informative than others. Prioritized Experience Replay (PER) samples transitions in proportion to their **TD error** -- the "surprise" factor -- leading to significantly faster and better learning.
+
+## Motivation: Not All Experiences Are Equal
+
+### The Problem with Uniform Sampling
+
+With a replay buffer of 1 million transitions and minibatch size 32, each transition is sampled on average $\frac{32}{1{,}000{,}000} = 0.0032\%$ per step. Many of these transitions are "boring" -- the agent already predicts them well and learns nothing from replaying them.
+
+Meanwhile, some transitions are "surprising":
+- Transitions where the agent discovered a new reward
+- Transitions where the agent's prediction was very wrong
+- Transitions at critical decision points
+
+These high-information transitions are sampled at the same rate as uninformative ones. This is highly suboptimal.
+
+### The Key Insight
+
+The **TD error** measures how "surprising" a transition is:
+
+$$
+\delta_i = \left| r + \gamma \max_{a'} Q(s', a'; \theta^-) - Q(s, a; \theta) \right|
+$$
+
+A large $|\delta_i|$ means the agent's prediction was far off -- there is much to learn. A small $|\delta_i|$ means the agent already predicts this transition well.
+
+## Proportional Prioritization
+
+### Sampling Probability
+
+Instead of sampling uniformly, PER samples transition $i$ with probability:
+
+$$
+P(i) = \frac{p_i^\alpha}{\sum_k p_k^\alpha}
+$$
+
+where:
+- $p_i$ is the **priority** of transition $i$
+- $\alpha$ controls how much prioritization is used:
+  - $\alpha = 0$: uniform sampling (no prioritization)
+  - $\alpha = 1$: full prioritization (pure greedy)
+
+### Setting Priorities
+
+**Proportional method:** Priority is based on the absolute TD error:
+
+$$
+p_i = |\delta_i| + \epsilon
+$$
+
+where $\epsilon > 0$ is a small constant that ensures all transitions have nonzero probability of being sampled (typically $\epsilon = 10^{-6}$).
+
+**Rank-based method:** Priority is based on the rank of the TD error:
+
+$$
+p_i = \frac{1}{\text{rank}(i)}
+$$
+
+where $\text{rank}(i)$ is the position of transition $i$ when sorted by $|\delta_i|$ in descending order.
+
+### Proportional vs Rank-Based
+
+| Property | Proportional | Rank-Based |
+|---|---|---|
+| Sensitivity to outliers | High (one huge TD error dominates) | Low (uses rank, not magnitude) |
+| Implementation | Easier | Requires sorting |
+| Distribution shape | Depends on TD error distribution | Always follows a power law |
+| Performance | Slightly better in practice | More robust |
+
+## Importance Sampling Correction
+
+### The Bias Problem
+
+Prioritized sampling introduces **bias**: transitions with high priority are overrepresented in the training data. This means the gradient estimates are biased -- we are not optimizing the true loss over the uniform data distribution.
+
+### Correcting with Importance Sampling Weights
+
+To correct this bias, we weight each sample by the inverse of its sampling probability:
+
+$$
+w_i = \left( \frac{1}{N \cdot P(i)} \right)^\beta
+$$
+
+where:
+- $N$ is the replay buffer size
+- $P(i)$ is the sampling probability
+- $\beta \in [0, 1]$ controls the amount of correction:
+  - $\beta = 0$: no correction (fully biased)
+  - $\beta = 1$: full correction (unbiased)
+
+The weights are **normalized** so the maximum weight is 1:
+
+$$
+w_i \leftarrow \frac{w_i}{\max_j w_j}
+$$
+
+### Annealing $\beta$
+
+In practice, $\beta$ is annealed from a small value to 1 over the course of training:
+- Early in training: $\beta$ is small, allowing biased but fast learning
+- Late in training: $\beta \rightarrow 1$, the estimates become unbiased (important for convergence)
+
+### The Corrected Loss
+
+The loss for a minibatch becomes:
+
+$$
+L(\theta) = \frac{1}{B} \sum_{j=1}^{B} w_j \cdot \left( y_j - Q_\theta(s_j, a_j) \right)^2
+$$
+
+High-priority samples get lower weights (because they are sampled more often), and low-priority samples get higher weights.
+
+## The Full PER Algorithm
+
+```
+Algorithm: DQN with Prioritized Experience Replay
+
+Initialize replay memory D to capacity N with priorities
+Initialize Q with random weights theta, target Q_hat with theta^- = theta
+
+For episode = 1 to M:
+  For t = 1 to T:
+    Select action a_t (epsilon-greedy from Q_theta)
+    Execute a_t, observe r_t, s_{t+1}
+    Store (s_t, a_t, r_t, s_{t+1}) in D with maximal priority p_t = max_{i<t} p_i
+
+    Sample minibatch of B transitions from D using P(i) = p_i^alpha / sum_k p_k^alpha
+    Compute importance sampling weights w_j = (1/(N*P(j)))^beta / max_i w_i
+
+    Compute TD errors: delta_j = r_j + gamma * max_a' Q_hat(s'_j, a'; theta^-) - Q_theta(s_j, a_j)
+    Update priorities: p_j = |delta_j| + epsilon
+
+    Perform gradient descent on: sum_j w_j * delta_j^2
+    Periodically update theta^- <- theta
+  End For
+End For
+```
+
+**Note:** New transitions are added with **maximum priority** so they are guaranteed to be sampled at least once.
+
+## Results: Prioritized Replay Performance
+
+### Atari Benchmark (Schaul et al., 2016)
+
+| Metric | DQN Baseline | DQN Rank-Based | DDQN Baseline | DDQN Rank-Based | DDQN Proportional |
+|---|---|---|---|---|---|
+| Median | 48% | 106% | 111% | 113% | **128%** |
+| Mean | 122% | 355% | 418% | 454% | **551%** |
+| > baseline | -- | 41 | -- | 38 | **42** |
+| > human | 15 | 25 | 30 | 33 | **33** |
+| # games | 49 | 49 | 57 | 57 | 57 |
+
+(Percentages relative to human performance)
+
+**Key findings:**
+- PER leads to **much faster learning** -- the learning curve rises more steeply
+- Both proportional and rank-based methods improve significantly over uniform
+- The combination of Double DQN + proportional PER achieves the best overall results
+- PER is especially beneficial in games with sparse or delayed rewards
+
+## Worked Example: Prioritized Sampling
+
+Consider a buffer with 5 transitions and $\alpha = 1$:
+
+| Transition | TD Error $|\delta_i|$ | Priority $p_i = |\delta_i| + 0.001$ | $P(i)$ |
+|---|---|---|---|
+| A | 5.0 | 5.001 | 50.0% |
+| B | 2.0 | 2.001 | 20.0% |
+| C | 0.1 | 0.101 | 1.0% |
+| D | 1.5 | 1.501 | 15.0% |
+| E | 1.4 | 1.401 | 14.0% |
+
+**With uniform sampling:** Each transition has $P(i) = 20\%$.
+
+**With prioritized sampling:** Transition A (highest surprise) has 50% chance of being sampled. Transition C (already well-predicted) has only 1% chance.
+
+**Importance sampling weight for transition A** (with $\beta = 1$):
+$$
+w_A = \left(\frac{1}{5 \times 0.50}\right)^1 = 0.4
+$$
+
+This down-weights the gradient from over-sampled transition A, correcting the bias.
+
+## Practical Considerations
+
+### Computational Efficiency
+
+Naive PER requires updating all priorities after each gradient step (expensive). In practice:
+- Only update priorities for transitions **in the current minibatch**
+- Use a **sum-tree** data structure for efficient $O(\log N)$ sampling and priority updates
+- A sum-tree is a binary tree where each parent stores the sum of its children's priorities
+
+### Stale Priorities
+
+Priorities can become **stale**: a transition might have had a high TD error when first observed, but after learning, the error might be low. The priorities are only refreshed when a transition is sampled again. This is acceptable in practice because:
+- New transitions start with maximum priority
+- Frequently sampled transitions get updated regularly
+- The staleness effect diminishes with large buffers
+
+## Key Takeaway
+
+> Prioritized Experience Replay samples transitions proportionally to their absolute TD error -- "surprising" transitions are replayed more often. This dramatically accelerates learning by focusing training on the most informative experiences. Importance sampling weights correct the bias introduced by non-uniform sampling, and are annealed from partial to full correction during training. PER is compatible with and complementary to both Double DQN and Dueling DQN.
+
+**Reference:** "Prioritized Experience Replay", Schaul et al. (2016).

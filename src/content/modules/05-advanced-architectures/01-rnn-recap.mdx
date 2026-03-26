@@ -1,0 +1,110 @@
+---
+title: "Recurrent Neural Networks Recap"
+lessonId: "advanced-arch-01-rnn-recap"
+moduleId: "05-advanced-architectures"
+order: 1
+xpReward: 150
+isBonus: true
+requiresParts: []
+journalEntry: "TEMPORAL CIRCUITS INITIALIZING. Learning to remember the past to predict the future."
+---
+
+# Recurrent Neural Networks Recap
+
+Standard feedforward networks process each input independently. But many problems in robotics involve **sequences** -- sensor readings over time, language commands, trajectory data. **Recurrent Neural Networks (RNNs)** are designed to handle sequential data by maintaining a **hidden state** that carries information across time steps.
+
+## Why Sequences Matter
+
+Consider a robot receiving sensor data at each time step. The current observation alone may be ambiguous -- is the object moving left or right? You need **temporal context** to answer that. RNNs provide this by processing inputs one step at a time while maintaining memory.
+
+## RNN Architecture
+
+At each time step $t$, the RNN takes:
+- The current input $\mathbf{x}_t$
+- The previous hidden state $\mathbf{h}_{t-1}$
+
+And produces:
+- A new hidden state $\mathbf{h}_t$
+- An output $\mathbf{y}_t$
+
+$$
+\mathbf{h}_t = \tanh(\mathbf{W}_{hh}\mathbf{h}_{t-1} + \mathbf{W}_{xh}\mathbf{x}_t + \mathbf{b}_h)
+$$
+
+$$
+\mathbf{y}_t = \mathbf{W}_{hy}\mathbf{h}_t + \mathbf{b}_y
+$$
+
+The **same weight matrices** $\mathbf{W}_{hh}$, $\mathbf{W}_{xh}$, and $\mathbf{W}_{hy}$ are shared across all time steps. This is called **weight sharing** or **parameter tying**.
+
+## Unrolling Through Time
+
+To understand how RNNs process a sequence, we "unroll" the network across time steps:
+
+$$
+\mathbf{h}_0 \xrightarrow{\mathbf{x}_1} \mathbf{h}_1 \xrightarrow{\mathbf{x}_2} \mathbf{h}_2 \xrightarrow{\mathbf{x}_3} \cdots \xrightarrow{\mathbf{x}_T} \mathbf{h}_T
+$$
+
+Each hidden state $\mathbf{h}_t$ is a function of the **entire history** of inputs $\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_t$. The hidden state acts as a compressed summary of everything seen so far.
+
+## Backpropagation Through Time (BPTT)
+
+Training RNNs uses **Backpropagation Through Time (BPTT)**. We unroll the network for $T$ time steps and compute gradients by applying the chain rule backwards through time:
+
+$$
+\frac{\partial J}{\partial \mathbf{W}_{hh}} = \sum_{t=1}^{T} \frac{\partial J_t}{\partial \mathbf{W}_{hh}}
+$$
+
+Each $\frac{\partial J_t}{\partial \mathbf{W}_{hh}}$ requires computing products of Jacobians:
+
+$$
+\frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k} = \prod_{i=k+1}^{t} \frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}}
+$$
+
+## The Vanishing and Exploding Gradient Problem
+
+This product of Jacobians is where things go wrong. Each factor $\frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}}$ involves the weight matrix $\mathbf{W}_{hh}$ and the derivative of $\tanh$.
+
+- If the **spectral radius** of $\mathbf{W}_{hh}$ is less than 1: gradients **vanish** exponentially -- the network cannot learn long-range dependencies
+- If the **spectral radius** of $\mathbf{W}_{hh}$ is greater than 1: gradients **explode** -- the training becomes unstable
+
+$$
+\left\| \prod_{i=k+1}^{t} \frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}} \right\| \leq \left( \| \mathbf{W}_{hh} \| \cdot \gamma \right)^{t-k}
+$$
+
+where $\gamma$ is the bound on the $\tanh$ derivative (at most 1).
+
+## Gradient Clipping
+
+A practical fix for **exploding gradients** is **gradient clipping**:
+
+$$
+\hat{\mathbf{g}} = \begin{cases} \frac{\tau}{\|\mathbf{g}\|} \mathbf{g} & \text{if } \|\mathbf{g}\| > \tau \\ \mathbf{g} & \text{otherwise} \end{cases}
+$$
+
+where $\tau$ is a threshold. This rescales the gradient when its norm exceeds $\tau$, preventing parameter updates from being too large.
+
+## RNN Variants by Output Structure
+
+Depending on the task, RNNs can be configured as:
+
+| Pattern | Input | Output | Example |
+|---------|-------|--------|---------|
+| **Many-to-one** | Sequence | Single vector | Sentiment analysis |
+| **One-to-many** | Single vector | Sequence | Image captioning |
+| **Many-to-many** | Sequence | Sequence (same length) | POS tagging |
+| **Many-to-many** | Sequence | Sequence (different length) | Translation |
+
+## Worked Example: Hidden State Computation
+
+Given $\mathbf{W}_{xh} = [1, 0.5]$, $\mathbf{W}_{hh} = [0.8]$, $\mathbf{b}_h = [0]$, $\mathbf{h}_0 = [0]$, and inputs $x_1 = 1$, $x_2 = 0.5$:
+
+**Step 1:** $\mathbf{h}_1 = \tanh(0.8 \cdot 0 + 1 \cdot 1 + 0) = \tanh(1) \approx 0.762$
+
+**Step 2:** $\mathbf{h}_2 = \tanh(0.8 \cdot 0.762 + 0.5 \cdot 0.5 + 0) = \tanh(0.860) \approx 0.696$
+
+Notice how $\mathbf{h}_2$ depends on both $x_2$ and the information from $x_1$ carried through $\mathbf{h}_1$.
+
+## Key Takeaway
+
+> RNNs process sequences by maintaining a hidden state that summarizes past information. However, vanilla RNNs struggle with long-range dependencies due to vanishing gradients during BPTT. This fundamental limitation motivates the gated architectures we will study next.

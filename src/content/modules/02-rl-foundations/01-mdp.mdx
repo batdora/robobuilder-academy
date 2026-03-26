@@ -1,0 +1,264 @@
+---
+title: "Markov Decision Processes"
+lessonId: "rl-01-mdp"
+moduleId: "02-rl-foundations"
+order: 1
+xpReward: 200
+requiresParts: ["CHASSIS", "BRAIN"]
+isBonus: false
+---
+
+# Markov Decision Processes
+
+This lesson covers the foundational framework for all of reinforcement learning: the **Markov Decision Process (MDP)**. Every algorithm you will encounter in this module -- from dynamic programming to Q-learning -- operates within this framework.
+
+## What is Reinforcement Learning?
+
+Reinforcement Learning (RL) is:
+
+- An approach to **Artificial Intelligence**
+- Learning from **interaction** with an environment
+- **Goal-oriented** learning
+- Learning **what to do** -- how to map situations to actions -- so as to maximize a numerical **reward signal**
+
+Unlike supervised learning, the learner is **not told which actions to take**. It must discover which actions yield the most reward through **trial-and-error search**.
+
+### Key Features of RL
+
+1. **No supervisor** -- the agent is never told the correct action
+2. **Trial-and-error search** -- the agent must try actions and observe results
+3. **Delayed reward** -- the agent may need to sacrifice short-term gains for greater long-term gains
+4. **Exploration vs. exploitation** -- the agent must balance trying new actions (explore) with using known good actions (exploit)
+5. **Holistic problem** -- considers the whole problem of a goal-directed agent in an uncertain environment
+
+### Supervised Learning vs. Reinforcement Learning
+
+In **supervised learning**:
+- Training info = desired (target) outputs
+- Error = target output - actual output
+
+In **reinforcement learning**:
+- Training info = evaluations ("rewards" / "penalties")
+- Objective: get as much reward as possible
+- The agent outputs **actions**, not predictions
+
+## Elements of Reinforcement Learning
+
+Every RL system has four main elements:
+
+| Element | Description |
+|---------|-------------|
+| **Policy** | What to do -- maps states to actions |
+| **Reward** | What is good -- immediate scalar feedback |
+| **Value** | What is good in the long run -- predicts future reward |
+| **Model** | What follows what -- predicts next state and reward |
+
+A **policy** is the core of the agent: it determines behavior. The **reward signal** defines the goal. The **value function** tells us the long-term desirability of states. The **model** (optional) allows the agent to plan.
+
+## The Agent-Environment Interface
+
+The agent and environment interact at **discrete time steps**: $t = 0, 1, 2, \ldots$
+
+At each step $t$:
+1. The agent observes state: $s_t \in S$
+2. The agent produces action: $a_t \in A(s_t)$
+3. The environment returns reward: $r_{t+1} \in \mathbb{R}$
+4. The environment transitions to next state: $s_{t+1}$
+
+This produces a **trajectory**:
+
+$$
+s_0, a_0, r_1, s_1, a_1, r_2, s_2, a_2, r_3, \ldots
+$$
+
+The **complete agent** is:
+- **Temporally situated** -- exists and acts over time
+- **Continual learning and planning** -- never stops adapting
+- Its objective is to **affect** the environment
+- The environment is **stochastic and uncertain**
+
+## Policy
+
+A **policy** at step $t$, denoted $\pi_t$, is a mapping from states to action probabilities:
+
+$$
+\pi_t(s, a) = \Pr\{a_t = a \mid s_t = s\}
+$$
+
+This gives the probability that the agent takes action $a$ when in state $s$.
+
+- A **deterministic policy** maps each state to exactly one action: $\pi(s) = a$
+- A **stochastic policy** gives a probability distribution over actions for each state: $\pi(a|s)$
+
+RL methods specify how the agent **changes its policy** as a result of experience. The agent's goal is to get as much reward as it can over the long run.
+
+## Goals and Rewards
+
+The **reward hypothesis**: all goals can be described by the maximization of expected cumulative scalar reward.
+
+Key principles:
+- A goal should specify **what** we want to achieve, not **how** to achieve it
+- A goal must be outside the agent's direct control -- thus outside the agent
+- The agent must be able to measure success **explicitly** and **frequently**
+
+## Returns
+
+Suppose the sequence of rewards after step $t$ is: $r_{t+1}, r_{t+2}, r_{t+3}, \ldots$
+
+We want to maximize the **expected return** $E\{R_t\}$ for each step $t$.
+
+### Episodic Tasks
+
+Interaction breaks naturally into **episodes** (e.g., plays of a game, trips through a maze):
+
+$$
+R_t = r_{t+1} + r_{t+2} + \cdots + r_T
+$$
+
+where $T$ is the final time step at which a **terminal state** is reached.
+
+### Continuing Tasks
+
+For tasks that do **not** have natural episodes, we use **discounted return**:
+
+$$
+R_t = r_{t+1} + \gamma r_{t+2} + \gamma^2 r_{t+3} + \cdots = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}
+$$
+
+where $\gamma$ ($0 \leq \gamma \leq 1$) is the **discount rate**.
+
+- $\gamma = 0$: **shortsighted** -- only cares about immediate reward
+- $\gamma \to 1$: **farsighted** -- cares about future rewards almost as much as immediate ones
+
+### Unified Notation
+
+We can unify episodic and continuing tasks by thinking of each episode as ending in an **absorbing state** that always produces reward of zero:
+
+$$
+R_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}
+$$
+
+where $\gamma$ can be 1 only if a zero-reward absorbing state is always reached.
+
+### Examples
+
+**Cart-Pole (Pole Balancing):**
+- As an **episodic task**: reward = +1 for each step before failure, so return = number of steps before failure
+- As a **continuing task**: reward = -1 upon failure, 0 otherwise, so return = $-\gamma^k$ for $k$ steps before failure
+- In both cases, return is maximized by avoiding failure for as long as possible
+
+**Mountain Car:**
+- Goal: reach the top of the hill as quickly as possible
+- Reward = -1 for each step where not at the top
+- Return = -(number of steps before reaching the top)
+- Return is maximized by minimizing number of steps
+
+## The Markov Property
+
+By "the state" at step $t$, we mean whatever information is available to the agent about its environment. Ideally, a state should summarize past sensations so as to retain all "essential" information.
+
+A state has the **Markov Property** if:
+
+$$
+\Pr\{s_{t+1} = s', r_{t+1} = r \mid s_t, a_t, r_t, s_{t-1}, a_{t-1}, \ldots, r_1, s_0, a_0\} = \Pr\{s_{t+1} = s', r_{t+1} = r \mid s_t, a_t\}
+$$
+
+for all $s'$, $r$, and histories $s_t, a_t, r_t, s_{t-1}, a_{t-1}, \ldots, r_1, s_0, a_0$.
+
+In plain language: **the future depends only on the present state and action, not on the history of how we got here.** The current state contains all the information needed to predict the future.
+
+## Markov Decision Processes (MDPs)
+
+If a reinforcement learning task has the Markov Property, it is basically a **Markov Decision Process (MDP)**.
+
+If state and action sets are **finite**, it is a **finite MDP**.
+
+### Formal Definition
+
+A finite MDP is defined by:
+
+1. **State set** $S$ and **action sets** $A(s)$ for each state $s$
+
+2. **Transition probabilities** (one-step dynamics):
+
+$$
+\mathbf{P}_{ss'}^{a} = \Pr\{s_{t+1} = s' \mid s_t = s, a_t = a\} \quad \text{for all } s, s' \in S, \, a \in A(s)
+$$
+
+3. **Expected rewards**:
+
+$$
+\mathbf{R}_{ss'}^{a} = E\{r_{t+1} \mid s_t = s, a_t = a, s_{t+1} = s'\} \quad \text{for all } s, s' \in S, \, a \in A(s)
+$$
+
+The transition probabilities must satisfy:
+
+$$
+\sum_{s' \in S} \mathbf{P}_{ss'}^{a} = 1 \quad \text{for all } s \in S, \, a \in A(s)
+$$
+
+## Example: Recycling Robot MDP
+
+A mobile robot collects empty cans. At each step, it decides whether to:
+1. **Search** for a can actively
+2. **Wait** for someone to bring a can
+3. **Recharge** its battery (only when battery is low)
+
+**States:** $S = \{\texttt{high}, \texttt{low}\}$ (battery level)
+
+**Actions:**
+- $A(\texttt{high}) = \{\texttt{search}, \texttt{wait}\}$
+- $A(\texttt{low}) = \{\texttt{search}, \texttt{wait}, \texttt{recharge}\}$
+
+**Rewards:**
+- $\mathbf{R}^{\text{search}}$ = expected number of cans while searching
+- $\mathbf{R}^{\text{wait}}$ = expected number of cans while waiting
+- $\mathbf{R}^{\text{search}} > \mathbf{R}^{\text{wait}}$
+
+**Transition dynamics:**
+- From **high**, searching: stay high with probability $\alpha$, go to low with probability $1-\alpha$
+- From **high**, waiting: stay high with probability $1$
+- From **low**, searching: stay low with probability $\beta$, get rescued (go to high) with probability $1-\beta$ and reward $-3$
+- From **low**, waiting: stay low with probability $1$
+- From **low**, recharging: go to high with probability $1$, reward $0$
+
+This example illustrates how a real-world problem maps to the MDP framework: states capture the relevant information (battery level), actions represent choices, transition probabilities capture uncertainty, and rewards encode the goal.
+
+## Action Selection Strategies
+
+### Greedy Action Selection
+
+Always pick the action with the highest estimated value:
+
+$$
+a_t = a_t^* = \arg\max_a Q_t(a)
+$$
+
+This is pure **exploitation** -- no exploration at all.
+
+### Epsilon-Greedy Action Selection
+
+The simplest way to balance exploration and exploitation:
+
+$$
+a_t = \begin{cases} a_t^* & \text{with probability } 1 - \varepsilon \\ \text{random action} & \text{with probability } \varepsilon \end{cases}
+$$
+
+With probability $1 - \varepsilon$, the agent **exploits** (picks the best known action). With probability $\varepsilon$, the agent **explores** (picks a random action uniformly).
+
+### Softmax Action Selection
+
+Softmax methods grade action probabilities by their estimated values using a **Gibbs (Boltzmann) distribution**:
+
+$$
+\Pr\{a_t = a\} = \frac{e^{Q_t(a)/\tau}}{\sum_{b=1}^{n} e^{Q_t(b)/\tau}}
+$$
+
+where $\tau$ is the **computational temperature**:
+- High $\tau$: actions are nearly equiprobable (more exploration)
+- Low $\tau$: higher-value actions get much higher probability (more exploitation)
+- $\tau \to 0$: becomes greedy
+
+## Key Takeaway
+
+> The MDP framework provides a precise mathematical formulation for sequential decision-making under uncertainty. Every concept in RL -- from value functions to Q-learning -- builds directly on MDPs. Master this framework and everything else follows.

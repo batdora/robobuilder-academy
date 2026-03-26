@@ -1,0 +1,842 @@
+[
+  {
+    "id": "final-m1-q01",
+    "type": "multiple-choice",
+    "question": "A CNN uses 32 filters of size 3x3 on a 64x64x3 input with stride 1 and no padding. How many parameters does this convolutional layer have (including bias)?",
+    "options": [
+      "896",
+      "864",
+      "27,648",
+      "6,272"
+    ],
+    "correctIndex": 0,
+    "explanation": "Each filter has 3*3*3 = 27 weights, and there are 32 filters: 32*27 = 864 weights + 32 biases = 896 parameters. The output spatial dimensions do not affect the parameter count.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m1-q02",
+    "type": "multiple-choice",
+    "question": "Why does batch normalization help training of deep networks, and how does it relate to the optimization landscape?",
+    "options": [
+      "It eliminates the need for regularization entirely",
+      "It reduces internal covariate shift and smooths the loss surface, making optimization easier",
+      "It increases the learning rate automatically",
+      "It converts the problem into a convex optimization"
+    ],
+    "correctIndex": 1,
+    "explanation": "Batch normalization normalizes activations within each mini-batch, reducing internal covariate shift. Recent work (Santurkar et al. 2018) shows it smooths the loss landscape, making gradients more predictive and allowing larger learning rates.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m1-q03",
+    "type": "multiple-choice",
+    "question": "In stochastic gradient descent, why does using mini-batches instead of the full dataset often lead to better generalization?",
+    "options": [
+      "Mini-batches compute the exact gradient",
+      "The noise in mini-batch gradients acts as implicit regularization, helping escape sharp minima",
+      "Mini-batches always converge faster than full-batch",
+      "Mini-batches eliminate the need for a learning rate schedule"
+    ],
+    "correctIndex": 1,
+    "explanation": "Mini-batch SGD introduces gradient noise that acts as implicit regularization. This noise helps the optimizer escape sharp local minima and settle in flatter regions of the loss landscape, which tend to generalize better.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m1-q04",
+    "type": "multiple-choice",
+    "question": "What is the key advantage of using ReLU activation over sigmoid in deep neural networks?",
+    "options": [
+      "ReLU always outputs values between 0 and 1",
+      "ReLU avoids the vanishing gradient problem for positive inputs and is computationally cheaper",
+      "ReLU guarantees global convergence",
+      "ReLU can approximate any function with a single neuron"
+    ],
+    "correctIndex": 1,
+    "explanation": "Sigmoid saturates for large positive/negative inputs, causing vanishing gradients. ReLU has a constant gradient of 1 for positive inputs, enabling gradient flow through deep networks. It is also cheaper to compute than exp().",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m1-q05",
+    "type": "multiple-choice",
+    "question": "A robot has a 6-DOF arm. What is the minimum number of joints needed to reach any position AND orientation in 3D space?",
+    "options": [
+      "3",
+      "4",
+      "6",
+      "9"
+    ],
+    "correctIndex": 2,
+    "explanation": "3D space has 3 translational and 3 rotational degrees of freedom. To achieve arbitrary position and orientation, a robot arm needs at least 6 independent joints (DOF). Fewer joints restrict the reachable workspace or orientations.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m1-q06",
+    "type": "multiple-choice",
+    "question": "How does max pooling in a CNN contribute to translation invariance?",
+    "options": [
+      "It learns to detect edges at any position",
+      "It selects the strongest activation in a local region, making the output less sensitive to small spatial shifts",
+      "It normalizes feature maps across spatial dimensions",
+      "It applies dropout to random spatial positions"
+    ],
+    "correctIndex": 1,
+    "explanation": "Max pooling takes the maximum activation in each local region. If a feature shifts slightly, the max in the pooling window often remains the same, providing a degree of translation invariance to the representation.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m1-q07",
+    "type": "multiple-choice",
+    "question": "What problem does the Adam optimizer solve that vanilla SGD with momentum does not?",
+    "options": [
+      "Adam guarantees finding the global minimum",
+      "Adam adapts the learning rate per-parameter using second moment estimates, handling sparse gradients better",
+      "Adam does not require any hyperparameters",
+      "Adam eliminates the need for weight initialization"
+    ],
+    "correctIndex": 1,
+    "explanation": "Adam maintains per-parameter adaptive learning rates using running estimates of first (mean) and second (uncentered variance) moments of gradients. This is especially helpful for sparse gradients and parameters that update at different rates.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m1-q08",
+    "type": "multiple-choice",
+    "question": "In backpropagation, what does the chain rule compute at each layer?",
+    "options": [
+      "The absolute value of each weight",
+      "The partial derivative of the loss with respect to each parameter by multiplying local gradients along the computation graph",
+      "The optimal weight values directly",
+      "The probability of each class"
+    ],
+    "correctIndex": 1,
+    "explanation": "Backpropagation applies the chain rule of calculus: at each layer it computes the local gradient (derivative of the layer's operation) and multiplies it with the upstream gradient flowing back from the loss, propagating error signals through the network.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m1-q09",
+    "type": "multiple-choice",
+    "question": "If a neural network achieves 99% training accuracy but only 60% test accuracy, what technique is LEAST likely to help?",
+    "options": [
+      "Adding dropout",
+      "Increasing model capacity (more layers/neurons)",
+      "Using data augmentation",
+      "Adding L2 regularization"
+    ],
+    "correctIndex": 1,
+    "explanation": "The gap between training (99%) and test (60%) accuracy indicates overfitting. Increasing model capacity would worsen overfitting. Dropout, data augmentation, and L2 regularization all help reduce overfitting by constraining the model.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m1-q10",
+    "type": "multiple-choice",
+    "question": "Why are convolutional layers preferred over fully connected layers for image processing?",
+    "options": [
+      "They are always faster to train",
+      "They exploit spatial locality and weight sharing, drastically reducing parameters while preserving spatial structure",
+      "They can process any data type, not just images",
+      "They guarantee rotation invariance"
+    ],
+    "correctIndex": 1,
+    "explanation": "Convolutional layers use local receptive fields (spatial locality) and shared weights across positions (weight sharing). A 3x3 filter applied to a 224x224 image has far fewer parameters than a fully connected equivalent, while preserving the spatial hierarchy of features.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m1-q11",
+    "type": "multiple-choice",
+    "question": "What is the purpose of the softmax function in the output layer of a classification network?",
+    "options": [
+      "It makes the network deeper",
+      "It converts raw logits into a probability distribution over classes that sums to 1",
+      "It prevents vanishing gradients",
+      "It reduces the number of parameters"
+    ],
+    "correctIndex": 1,
+    "explanation": "Softmax exponentiates each logit and normalizes by the sum, producing outputs in [0,1] that sum to 1. This gives a proper probability distribution over classes, which is then used with cross-entropy loss for training.",
+    "bloomLevel": "remember"
+  },
+  {
+    "id": "final-m1-q12",
+    "type": "multiple-choice",
+    "question": "How does residual learning (skip connections) in ResNet address the degradation problem?",
+    "options": [
+      "By removing layers that do not contribute",
+      "By allowing layers to learn residual mappings F(x) = H(x) - x, making it easier to learn identity mappings when needed",
+      "By doubling the width of each layer",
+      "By using a different activation function"
+    ],
+    "correctIndex": 1,
+    "explanation": "Without skip connections, deeper networks paradoxically perform worse (degradation). Skip connections let layers learn F(x) = H(x) - x. If a layer is unnecessary, it only needs to learn F(x) = 0 (identity), which is easier than learning H(x) = x directly.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m1-q13",
+    "type": "multiple-choice",
+    "question": "A lidar sensor returns a point cloud of 100,000 points. What type of neural network architecture is most appropriate for processing this data directly?",
+    "options": [
+      "A standard CNN on the raw points",
+      "A fully connected network with flattened input",
+      "A point-cloud network like PointNet that handles unordered sets",
+      "An RNN processing points sequentially"
+    ],
+    "correctIndex": 2,
+    "explanation": "Point clouds are unordered sets of 3D points. Standard CNNs require grid structure, and ordering for RNNs is arbitrary. PointNet and similar architectures use symmetric functions (like max pooling) to handle permutation invariance of point sets.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m1-q14",
+    "type": "multiple-choice",
+    "question": "What is the gradient of ReLU(x) at x = 0?",
+    "options": [
+      "1",
+      "0",
+      "0.5",
+      "Undefined, but typically set to 0 in practice"
+    ],
+    "correctIndex": 3,
+    "explanation": "ReLU is not differentiable at x = 0 (it has a kink). In practice, the subgradient is used and the convention is to set the gradient to 0 at x = 0, though some implementations use 0 or 1 arbitrarily.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m1-q15",
+    "type": "multiple-choice",
+    "question": "Cross-entropy loss for a binary classifier is -[y*log(p) + (1-y)*log(1-p)]. Why is this preferred over mean squared error for classification?",
+    "options": [
+      "MSE is always numerically unstable",
+      "Cross-entropy provides stronger gradients when the prediction is confidently wrong, leading to faster correction",
+      "Cross-entropy always has a unique minimum",
+      "MSE cannot be computed for probabilities"
+    ],
+    "correctIndex": 1,
+    "explanation": "With sigmoid outputs and MSE, gradients vanish when the output saturates at the wrong value. Cross-entropy's log term produces large gradients precisely when the model is confidently wrong, accelerating learning in these critical cases.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m2-q01",
+    "type": "multiple-choice",
+    "question": "How does experience replay address the correlation problem that temporal-difference (TD) learning suffers from in online learning?",
+    "options": [
+      "It removes the need for a replay buffer",
+      "It breaks temporal correlations by randomly sampling past experiences, making updates more i.i.d.",
+      "It replaces TD targets with Monte Carlo returns",
+      "It uses a fixed policy to collect all experiences"
+    ],
+    "correctIndex": 1,
+    "explanation": "In online TD learning, consecutive samples are highly correlated (same trajectory). Experience replay stores transitions and samples random mini-batches, breaking these temporal correlations and providing more i.i.d.-like updates for stable learning.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m2-q02",
+    "type": "multiple-choice",
+    "question": "In the Bellman optimality equation, why can't we simply solve it analytically for most real-world problems?",
+    "options": [
+      "The equation has no solution",
+      "The state-action space is too large and the transition dynamics are often unknown, making direct computation infeasible",
+      "The discount factor makes it diverge",
+      "The equation only works for deterministic environments"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Bellman optimality equation requires solving a system of |S| nonlinear equations. For large or continuous state spaces this is computationally intractable. Additionally, the transition probabilities P(s'|s,a) are often unknown, necessitating sample-based methods.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m2-q03",
+    "type": "multiple-choice",
+    "question": "What is the fundamental difference between policy evaluation and policy improvement in dynamic programming?",
+    "options": [
+      "Policy evaluation finds the optimal policy; policy improvement evaluates it",
+      "Policy evaluation computes V^pi for a given policy; policy improvement updates the policy greedily with respect to V^pi",
+      "They are the same operation with different names",
+      "Policy evaluation uses Q-values; policy improvement uses V-values"
+    ],
+    "correctIndex": 1,
+    "explanation": "Policy evaluation iteratively computes the value function V^pi for a fixed policy pi. Policy improvement then constructs a new policy by acting greedily with respect to V^pi. Alternating these two steps is the essence of policy iteration.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q04",
+    "type": "multiple-choice",
+    "question": "An agent in a gridworld has gamma = 0.9. The shortest path to the goal gives rewards of -1 per step for 5 steps, then +10 at the goal. What is the approximate discounted return from the start?",
+    "options": [
+      "+5.0",
+      "+1.41",
+      "+2.59",
+      "+10.0"
+    ],
+    "correctIndex": 2,
+    "explanation": "Return = -1 - 0.9 - 0.81 - 0.729 - 0.6561 + 0.9^5 * 10 = -1 - 0.9 - 0.81 - 0.729 - 0.6561 + 5.9049 = -4.0951 + 5.9049 = approximately +2.59 (after discounting each step).",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m2-q05",
+    "type": "multiple-choice",
+    "question": "Why does Q-learning converge to the optimal Q-function under certain conditions, even though it uses an epsilon-greedy behavior policy?",
+    "options": [
+      "Because epsilon-greedy is always optimal",
+      "Because Q-learning is off-policy: it updates using max_a Q(s',a) regardless of the action actually taken, decoupling learning from the behavior policy",
+      "Because it uses importance sampling to correct for the behavior policy",
+      "Because the behavior policy eventually becomes deterministic"
+    ],
+    "correctIndex": 1,
+    "explanation": "Q-learning is off-policy because its update target uses max_a Q(s',a) (the greedy action), not the action the behavior policy actually selects. As long as all state-action pairs are visited infinitely often (ensured by epsilon-greedy) and the learning rate decays appropriately, Q-learning converges to Q*.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m2-q06",
+    "type": "multiple-choice",
+    "question": "What is the bias-variance tradeoff between TD(0) and Monte Carlo methods?",
+    "options": [
+      "TD(0) has high variance but zero bias; MC has low variance but high bias",
+      "TD(0) has low variance but introduces bias through bootstrapping; MC is unbiased but has high variance from full episode returns",
+      "Both methods are unbiased and have equal variance",
+      "MC has lower variance because it uses shorter sequences"
+    ],
+    "correctIndex": 1,
+    "explanation": "TD(0) bootstraps using the current estimate V(s'), introducing bias (the estimate may be wrong) but low variance (single-step update). MC uses the actual full return which is an unbiased estimate of V(s), but has high variance since the return depends on many stochastic transitions.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m2-q07",
+    "type": "multiple-choice",
+    "question": "In epsilon-greedy exploration, what happens as epsilon approaches 0?",
+    "options": [
+      "The policy becomes purely random",
+      "The policy becomes purely greedy (exploitative) with no exploration",
+      "The policy oscillates between random and greedy",
+      "The value function diverges"
+    ],
+    "correctIndex": 1,
+    "explanation": "With epsilon-greedy, the agent takes a random action with probability epsilon and the greedy action with probability 1-epsilon. As epsilon approaches 0, random exploration vanishes and the agent always exploits its current Q-value estimates.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q08",
+    "type": "multiple-choice",
+    "question": "Why is the discount factor gamma necessary in continuing (non-episodic) MDPs?",
+    "options": [
+      "It makes the agent prefer later rewards",
+      "Without it, the sum of rewards could be infinite, making value functions undefined; gamma < 1 ensures convergence",
+      "It is only used to speed up computation",
+      "It penalizes the agent for taking too many actions"
+    ],
+    "correctIndex": 1,
+    "explanation": "In continuing tasks with no terminal state, an undiscounted (gamma=1) sum of bounded rewards can diverge to infinity. Gamma < 1 ensures the geometric series converges, giving well-defined, finite value functions. It also encodes a preference for sooner rewards.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q09",
+    "type": "multiple-choice",
+    "question": "What is the key difference between SARSA and Q-learning?",
+    "options": [
+      "SARSA uses neural networks; Q-learning uses tables",
+      "SARSA is on-policy (updates with the action actually taken); Q-learning is off-policy (updates with the greedy max action)",
+      "Q-learning requires a model of the environment; SARSA does not",
+      "SARSA can only be used in episodic tasks"
+    ],
+    "correctIndex": 1,
+    "explanation": "SARSA updates Q(s,a) using the next action a' actually taken by the policy (on-policy). Q-learning updates using max_a' Q(s',a'), the best possible next action regardless of what was actually taken (off-policy). This makes Q-learning learn the optimal policy even with exploratory behavior.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q10",
+    "type": "multiple-choice",
+    "question": "In value iteration, why do we not need to explicitly represent a policy during the iteration process?",
+    "options": [
+      "Because the policy is always random",
+      "Because value iteration directly computes V* using the Bellman optimality operator, and the optimal policy can be extracted afterward from V*",
+      "Because it only works for deterministic policies",
+      "Because the policy is embedded in the reward function"
+    ],
+    "correctIndex": 1,
+    "explanation": "Value iteration applies the Bellman optimality backup V(s) = max_a [R(s,a) + gamma * sum P(s'|s,a)*V(s')], implicitly taking the greedy action at each iteration. Once V* converges, the optimal policy is extracted as pi*(s) = argmax_a [R + gamma * sum P*V*].",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q11",
+    "type": "multiple-choice",
+    "question": "An MDP has states {A, B, C} and a deterministic policy. The transition from A always goes to B (reward -1), B always goes to C (reward -1), and C is terminal (reward +5). With gamma = 1, what is V(A)?",
+    "options": [
+      "3",
+      "5",
+      "-2",
+      "4"
+    ],
+    "correctIndex": 0,
+    "explanation": "V(A) = -1 + gamma*V(B) = -1 + V(B). V(B) = -1 + gamma*V(C) = -1 + 5 = 4. So V(A) = -1 + 4 = 3. With gamma = 1 (no discounting), we simply sum all rewards along the trajectory.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m2-q12",
+    "type": "multiple-choice",
+    "question": "Why can't standard tabular methods scale to problems like Atari games?",
+    "options": [
+      "Atari games are deterministic, so RL is not needed",
+      "The state space (raw pixels) is astronomically large, making it impossible to visit each state enough times or store a table entry for each",
+      "Tabular methods cannot handle discrete actions",
+      "Atari games require a model of the environment"
+    ],
+    "correctIndex": 1,
+    "explanation": "An Atari frame is 210x160 pixels with 128 colors, giving roughly 128^(210*160) possible states. A Q-table would need one entry per state-action pair, which is impossibly large. Function approximation (e.g., neural networks) generalizes across similar states.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q13",
+    "type": "multiple-choice",
+    "question": "What is the relationship between V^pi(s) and Q^pi(s,a)?",
+    "options": [
+      "V^pi(s) = max_a Q^pi(s,a)",
+      "V^pi(s) = sum_a pi(a|s) * Q^pi(s,a), the expectation of Q under the policy",
+      "Q^pi(s,a) = V^pi(s) for all a",
+      "They are unrelated quantities"
+    ],
+    "correctIndex": 1,
+    "explanation": "V^pi(s) is the expected return starting from state s following policy pi. Since the policy selects actions with probability pi(a|s), V^pi(s) = sum_a pi(a|s) * Q^pi(s,a). For the optimal policy, V*(s) = max_a Q*(s,a) since the policy is greedy.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q14",
+    "type": "multiple-choice",
+    "question": "In the exploration-exploitation dilemma, why is pure greedy selection (always picking the best known action) problematic?",
+    "options": [
+      "It always leads to the optimal policy",
+      "It can get stuck on suboptimal actions because it never discovers potentially better alternatives",
+      "It requires too much computation",
+      "It violates the Markov property"
+    ],
+    "correctIndex": 1,
+    "explanation": "A purely greedy agent exploits its current estimates without exploring alternatives. If initial estimates are wrong (which they typically are), the agent may never try actions that are actually better, converging to a suboptimal policy.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m2-q15",
+    "type": "multiple-choice",
+    "question": "How does n-step TD bridge the gap between TD(0) and Monte Carlo methods?",
+    "options": [
+      "It uses n different learning rates",
+      "It bootstraps after n steps instead of 1, trading off bias (from bootstrapping) and variance (from longer sampled returns)",
+      "It runs n independent agents in parallel",
+      "It only works when n equals the episode length"
+    ],
+    "correctIndex": 1,
+    "explanation": "n-step TD uses the return from the next n actual rewards plus the bootstrapped value at step n. n=1 is TD(0) (low variance, more bias), n=infinity is MC (zero bias, high variance). Intermediate n provides a useful tradeoff between bias and variance.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q01",
+    "type": "multiple-choice",
+    "question": "Compare the DQN loss gradient with the policy gradient. What is the fundamental difference in what they optimize?",
+    "options": [
+      "Both optimize the same objective but use different learning rates",
+      "DQN minimizes TD error to approximate Q*, fitting a regression target; policy gradient directly maximizes expected return by adjusting action probabilities",
+      "Policy gradient minimizes TD error; DQN maximizes expected return",
+      "DQN uses on-policy data; policy gradient uses off-policy data"
+    ],
+    "correctIndex": 1,
+    "explanation": "DQN treats Q-learning as a regression problem: minimize (Q(s,a) - target)^2 where target = r + gamma*max Q'. Policy gradient directly differentiates the expected return J(theta) = E[R] with respect to policy parameters, using the log-probability trick.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q02",
+    "type": "multiple-choice",
+    "question": "Why does DQN use a separate target network, and what would happen without it?",
+    "options": [
+      "The target network speeds up training by computing gradients in parallel",
+      "Without a target network, the TD target shifts with every update (moving target problem), causing oscillations and divergence",
+      "The target network provides exploration by selecting random actions",
+      "Without a target network, DQN would become on-policy"
+    ],
+    "correctIndex": 1,
+    "explanation": "In DQN, the target y = r + gamma*max Q_target(s',a') uses the target network. Without it, both the prediction and target change simultaneously with each weight update. This creates a moving target that destabilizes learning, often causing oscillation or divergence.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q03",
+    "type": "multiple-choice",
+    "question": "Double DQN addresses the maximization bias in standard DQN. What is this bias?",
+    "options": [
+      "The network always predicts positive Q-values",
+      "Using max_a Q(s',a) for both action selection and evaluation causes systematic overestimation of Q-values due to noise in the estimates",
+      "The replay buffer contains biased samples",
+      "The target network is updated too frequently"
+    ],
+    "correctIndex": 1,
+    "explanation": "Standard DQN uses max_a Q(s',a) which takes the maximum over noisy estimates. Due to Jensen's inequality, E[max(Q + noise)] >= max(E[Q]), causing systematic overestimation. Double DQN decouples selection (online net) from evaluation (target net) to reduce this bias.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q04",
+    "type": "multiple-choice",
+    "question": "In the dueling DQN architecture, the Q-value is decomposed as Q(s,a) = V(s) + A(s,a) - mean(A). Why is the mean subtracted from the advantage?",
+    "options": [
+      "To make training faster",
+      "To ensure identifiability: without it, V and A are not uniquely determined from Q, causing instability",
+      "To reduce the number of parameters",
+      "To implement double Q-learning"
+    ],
+    "correctIndex": 1,
+    "explanation": "Without the constraint, you could add a constant c to V and subtract c from all A values, getting the same Q. Centering A (subtracting its mean) forces the advantages to be identifiable, meaning V truly represents the state value and A represents the relative advantage of each action.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q05",
+    "type": "multiple-choice",
+    "question": "Prioritized experience replay samples transitions with probability proportional to their TD error. What problem does this introduce and how is it fixed?",
+    "options": [
+      "It causes underfitting; fixed by using a larger network",
+      "It introduces bias because high-error transitions are overrepresented; fixed by importance sampling weights that correct the distribution",
+      "It makes training slower; fixed by using uniform sampling",
+      "It causes the replay buffer to fill up faster; fixed by a larger buffer"
+    ],
+    "correctIndex": 1,
+    "explanation": "Non-uniform sampling changes the expected gradient direction. Importance sampling weights w_i = (N * P(i))^(-beta) compensate for the biased sampling distribution. Beta is annealed from a small value to 1 during training, fully correcting the bias by the end.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q06",
+    "type": "multiple-choice",
+    "question": "A DQN agent with a replay buffer of size 1,000,000 and batch size 32. After collecting 50,000 transitions, how many unique transitions has the network potentially been trained on if it performed 100,000 gradient steps?",
+    "options": [
+      "Exactly 50,000",
+      "At most 50,000 but each sampled multiple times; 3.2M total samples drawn (with replacement)",
+      "Exactly 3,200,000 unique transitions",
+      "100,000"
+    ],
+    "correctIndex": 1,
+    "explanation": "With 50,000 transitions in the buffer and 100,000 steps of batch size 32, the agent draws 3.2M samples total. Since sampling is with replacement from 50K transitions, each transition is sampled ~64 times on average. The number of unique transitions seen is at most 50,000.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m3-q07",
+    "type": "multiple-choice",
+    "question": "Why can DQN handle high-dimensional state spaces (e.g., 84x84 pixel frames) but not continuous action spaces?",
+    "options": [
+      "Neural networks cannot process continuous inputs",
+      "DQN outputs Q(s,a) for each discrete action simultaneously; with continuous actions, the argmax over infinite actions is intractable",
+      "Continuous actions violate the Markov property",
+      "DQN requires one-hot encoded states"
+    ],
+    "correctIndex": 1,
+    "explanation": "DQN's architecture outputs a Q-value for each discrete action. The policy is argmax_a Q(s,a), which requires enumerating all actions. With continuous action spaces, this enumeration is impossible. Algorithms like DDPG or SAC use a separate actor network to handle continuous actions.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m3-q08",
+    "type": "multiple-choice",
+    "question": "What is the role of frame stacking (using 4 consecutive frames) in the original DQN Atari agent?",
+    "options": [
+      "It reduces the input dimensionality",
+      "It provides velocity/temporal information that a single frame cannot capture, partially satisfying the Markov property",
+      "It is used for data augmentation",
+      "It replaces the need for a recurrent network by averaging frames"
+    ],
+    "correctIndex": 1,
+    "explanation": "A single Atari frame is a static image that does not contain velocity information (e.g., ball direction in Pong). Stacking 4 frames lets the network infer motion and temporal dynamics, making the observation more Markovian so that the current state contains enough info to predict the future.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m3-q09",
+    "type": "multiple-choice",
+    "question": "In NoisyNet, learnable noise is added to the network weights. How does this differ from epsilon-greedy exploration?",
+    "options": [
+      "NoisyNet is deterministic; epsilon-greedy is stochastic",
+      "NoisyNet provides state-dependent exploration (noise affects different states differently); epsilon-greedy explores uniformly regardless of state",
+      "NoisyNet requires a replay buffer; epsilon-greedy does not",
+      "They are mathematically equivalent"
+    ],
+    "correctIndex": 1,
+    "explanation": "Epsilon-greedy takes a random action with fixed probability epsilon, regardless of which state the agent is in. NoisyNet's parametric noise affects the Q-value computation differently depending on the state, allowing the agent to explore more in uncertain states and exploit in familiar ones.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q10",
+    "type": "multiple-choice",
+    "question": "If a DQN agent's Q-values keep increasing without bound during training, what is the most likely cause?",
+    "options": [
+      "The learning rate is too low",
+      "Maximization bias and bootstrapping errors are compounding, causing Q-value overestimation to spiral",
+      "The replay buffer is too small",
+      "The agent has found the optimal policy"
+    ],
+    "correctIndex": 1,
+    "explanation": "Unbounded Q-value growth indicates overestimation spiraling: the max operator picks overestimated actions, which become bootstrapped targets for other states, propagating and amplifying the overestimation. Double DQN and target networks help mitigate this.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q11",
+    "type": "multiple-choice",
+    "question": "What is the 'deadly triad' in reinforcement learning with function approximation?",
+    "options": [
+      "Exploration, exploitation, and evaluation",
+      "The combination of function approximation, bootstrapping, and off-policy training, which can cause divergence",
+      "Three types of neural network architectures that fail at RL",
+      "The tradeoff between bias, variance, and computational cost"
+    ],
+    "correctIndex": 1,
+    "explanation": "The deadly triad refers to the instability that arises when combining: (1) function approximation (neural nets), (2) bootstrapping (TD-style updates), and (3) off-policy learning. Any two are safe, but all three together can cause divergence. DQN uses all three but stabilizes with target networks and replay.",
+    "bloomLevel": "remember"
+  },
+  {
+    "id": "final-m3-q12",
+    "type": "multiple-choice",
+    "question": "In distributional RL (C51), what does the network predict instead of a single Q-value?",
+    "options": [
+      "The policy distribution pi(a|s)",
+      "A categorical distribution over possible return values, modeling the full distribution of returns rather than just the mean",
+      "The transition probability P(s'|s,a)",
+      "The gradient of the Q-function"
+    ],
+    "correctIndex": 1,
+    "explanation": "C51 represents the value distribution Z(s,a) as a categorical distribution over 51 discrete atoms spanning a range of possible returns. Instead of learning E[Z] = Q(s,a), it learns the entire distribution, capturing uncertainty and multi-modal return distributions.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m3-q13",
+    "type": "multiple-choice",
+    "question": "Why is the Huber loss often preferred over MSE loss for DQN training?",
+    "options": [
+      "Huber loss is always smoother",
+      "Huber loss is quadratic for small errors but linear for large errors, making it robust to outlier TD errors and preventing exploding gradients",
+      "Huber loss converges in fewer iterations",
+      "Huber loss does not require a learning rate"
+    ],
+    "correctIndex": 1,
+    "explanation": "TD errors can occasionally be very large (outliers). MSE would square these, causing huge gradients and unstable updates. Huber loss clips the gradient to at most 1 for large errors (linear region) while still providing informative gradients for small errors (quadratic region).",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m3-q14",
+    "type": "multiple-choice",
+    "question": "How frequently should the target network be updated in DQN, and what is the tradeoff?",
+    "options": [
+      "Every step for best accuracy",
+      "Never; it should remain fixed throughout training",
+      "Less frequent updates provide more stable targets but can slow learning; more frequent updates speed learning but risk instability",
+      "The frequency does not affect performance"
+    ],
+    "correctIndex": 2,
+    "explanation": "Updating the target network too frequently reintroduces the moving target problem. Updating too rarely means the targets become stale and inaccurate. The standard DQN paper uses a hard update every 10,000 steps. Soft updates (Polyak averaging) offer a smoother alternative.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m3-q15",
+    "type": "multiple-choice",
+    "question": "Rainbow DQN combines six extensions to DQN. Which of the following is NOT one of them?",
+    "options": [
+      "Prioritized experience replay",
+      "Hindsight experience replay",
+      "Distributional RL (C51)",
+      "NoisyNets"
+    ],
+    "correctIndex": 1,
+    "explanation": "Rainbow combines: Double DQN, Prioritized Replay, Dueling architecture, Multi-step learning, Distributional RL (C51), and NoisyNets. Hindsight Experience Replay (HER) is a separate technique for goal-conditioned RL, not part of Rainbow.",
+    "bloomLevel": "remember"
+  },
+  {
+    "id": "final-m4-q01",
+    "type": "multiple-choice",
+    "question": "Why can PPO reuse collected data for multiple gradient steps while REINFORCE cannot?",
+    "options": [
+      "PPO uses a replay buffer; REINFORCE does not",
+      "PPO uses importance sampling with clipping to bound the policy ratio, allowing controlled reuse of slightly off-policy data; REINFORCE requires on-policy samples",
+      "REINFORCE only works with discrete actions",
+      "PPO does not use the policy gradient theorem"
+    ],
+    "correctIndex": 1,
+    "explanation": "REINFORCE estimates gradients using log pi(a|s) * R, which is only valid when actions come from the current policy pi. PPO multiplies by the importance ratio pi_new/pi_old and clips it to [1-eps, 1+eps], allowing multiple updates on the same batch while preventing the policy from changing too much.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m4-q02",
+    "type": "multiple-choice",
+    "question": "In the policy gradient theorem, the gradient is proportional to E[nabla log pi(a|s) * Q^pi(s,a)]. Why does using Q^pi(s,a) directly lead to high variance?",
+    "options": [
+      "Because Q^pi is always negative",
+      "Because Q^pi includes cumulative rewards from the entire trajectory, whose variance grows with episode length; a baseline V(s) reduces variance by subtracting the expected return",
+      "Because Q^pi is not differentiable",
+      "Because Q^pi requires a model of the environment"
+    ],
+    "correctIndex": 1,
+    "explanation": "Q^pi(s,a) is the total expected return, which can vary enormously between trajectories. The advantage A(s,a) = Q(s,a) - V(s) subtracts a state-dependent baseline. Since V(s) does not depend on the action, it does not bias the gradient but dramatically reduces variance.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m4-q03",
+    "type": "multiple-choice",
+    "question": "What problem does the natural policy gradient solve that the standard policy gradient does not?",
+    "options": [
+      "Standard policy gradient cannot handle continuous actions",
+      "Standard policy gradient steps in parameter space which may cause large unpredictable changes in policy space; the natural gradient steps in policy distribution space (Fisher information metric)",
+      "Standard policy gradient requires a model; natural gradient is model-free",
+      "Standard policy gradient always diverges"
+    ],
+    "correctIndex": 1,
+    "explanation": "A small step in parameter space can cause a large change in the policy distribution (and vice versa). The natural gradient pre-multiplies by the inverse Fisher information matrix, making steps proportional in the KL divergence sense. This leads to more stable and efficient updates in policy space.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m4-q04",
+    "type": "multiple-choice",
+    "question": "In actor-critic methods, why does using a learned value function as baseline not introduce bias into the policy gradient?",
+    "options": [
+      "The value function is always exact",
+      "Subtracting any function b(s) that does not depend on the action from Q^pi(s,a) does not change the expected gradient, because E_a[nabla log pi(a|s) * b(s)] = 0",
+      "The bias is cancelled by the actor's gradient",
+      "It does introduce bias, but we accept it"
+    ],
+    "correctIndex": 1,
+    "explanation": "For any baseline b(s) independent of action a: E_a[nabla log pi(a|s) * b(s)] = b(s) * nabla sum_a pi(a|s) = b(s) * nabla 1 = 0. Therefore subtracting V(s) from Q^pi(s,a) preserves the expected gradient direction while reducing variance.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m4-q05",
+    "type": "multiple-choice",
+    "question": "GAE (Generalized Advantage Estimation) uses a parameter lambda in [0,1]. What do lambda = 0 and lambda = 1 correspond to?",
+    "options": [
+      "lambda=0 is Monte Carlo; lambda=1 is TD(0)",
+      "lambda=0 is TD(0) advantage (low variance, more bias); lambda=1 is Monte Carlo advantage (no bias, high variance)",
+      "Both give the same estimate",
+      "lambda=0 uses no discount; lambda=1 uses maximum discount"
+    ],
+    "correctIndex": 1,
+    "explanation": "GAE computes a weighted average of n-step advantage estimates. lambda=0 uses only the 1-step TD advantage delta_t = r_t + gamma*V(s_{t+1}) - V(s_t), which has low variance but bias from V. lambda=1 sums all future deltas, recovering the full MC advantage with no bias but high variance.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m4-q06",
+    "type": "multiple-choice",
+    "question": "TRPO constrains policy updates using KL divergence. Why is a KL constraint preferred over a simple Euclidean constraint on parameters?",
+    "options": [
+      "KL divergence is easier to compute",
+      "A small parameter change can cause a large policy change (and vice versa); KL divergence directly measures how much the policy distribution changes, providing a more meaningful constraint",
+      "Euclidean constraints cannot be applied to neural networks",
+      "KL divergence guarantees monotonic improvement in all cases"
+    ],
+    "correctIndex": 1,
+    "explanation": "The mapping from parameters to policy distributions is highly nonlinear. A Euclidean ball in parameter space does not correspond to a meaningful region in policy space. KL divergence measures the actual distributional change, ensuring the new policy stays close to the old in behavior, not just in parameter values.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m4-q07",
+    "type": "multiple-choice",
+    "question": "PPO's clipped objective clips the ratio r = pi_new/pi_old to [1-eps, 1+eps]. What happens when the advantage is negative and r > 1+eps?",
+    "options": [
+      "The gradient pushes r higher",
+      "The objective is clipped, providing zero gradient, preventing the policy from moving further in a bad direction that has already changed too much",
+      "The advantage becomes positive",
+      "The policy is reset to the old policy"
+    ],
+    "correctIndex": 1,
+    "explanation": "When A < 0, the objective wants to decrease r (reduce the probability of that action). If r > 1+eps, the policy has already increased this action's probability too much. Clipping at 1+eps means the loss is flat, so the gradient is zero for this sample, preventing further increase.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m4-q08",
+    "type": "multiple-choice",
+    "question": "What advantage do policy-based methods have over value-based methods for problems with continuous action spaces?",
+    "options": [
+      "Policy methods are always more sample efficient",
+      "Policy methods directly parameterize and output a continuous action distribution (e.g., Gaussian), avoiding the intractable argmax over infinite actions that value-based methods require",
+      "Policy methods do not need a neural network",
+      "Value-based methods cannot learn from continuous rewards"
+    ],
+    "correctIndex": 1,
+    "explanation": "Value-based methods like DQN compute Q(s,a) for each action and take argmax. With continuous actions, enumerating all possible actions is impossible. Policy-based methods output a distribution (e.g., mean and variance of a Gaussian) from which actions are sampled directly.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m4-q09",
+    "type": "multiple-choice",
+    "question": "In REINFORCE, why must we collect complete episodes before updating, and what is the practical downside?",
+    "options": [
+      "REINFORCE uses bootstrapping, which requires terminal states",
+      "REINFORCE uses the actual return G_t as the reward signal, which is only known after the episode ends; this causes high variance and poor sample efficiency",
+      "REINFORCE requires the environment model to be known",
+      "There is no downside; REINFORCE is the most efficient algorithm"
+    ],
+    "correctIndex": 1,
+    "explanation": "REINFORCE computes gradients using the actual return G_t = sum of future rewards, which requires completing the episode. This makes it purely on-policy (cannot reuse data) and gives high-variance estimates since G_t depends on all future stochastic transitions. Actor-critic methods address this by bootstrapping.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m4-q10",
+    "type": "multiple-choice",
+    "question": "How does the entropy bonus in PPO's objective function help training?",
+    "options": [
+      "It speeds up gradient computation",
+      "It encourages exploration by penalizing overly deterministic policies, preventing premature convergence to suboptimal deterministic policies",
+      "It replaces the need for GAE",
+      "It reduces the number of required training epochs"
+    ],
+    "correctIndex": 1,
+    "explanation": "Adding an entropy bonus H(pi) to the objective discourages the policy from becoming too peaked (deterministic) too early. Higher entropy means more randomness in action selection, ensuring sufficient exploration. The coefficient controls the exploration-exploitation balance.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m4-q11",
+    "type": "multiple-choice",
+    "question": "Compare on-policy and off-policy algorithms in terms of sample efficiency. Which statement is correct?",
+    "options": [
+      "On-policy methods are always more sample efficient",
+      "Off-policy methods can reuse past data (replay buffer), making them more sample efficient, but they require careful handling (importance sampling, target networks) for stability",
+      "Sample efficiency is the same for both",
+      "Off-policy methods cannot use neural networks"
+    ],
+    "correctIndex": 1,
+    "explanation": "On-policy methods (REINFORCE, PPO) discard data after each update since the data was collected by a now-outdated policy. Off-policy methods (DQN, SAC) store transitions in a replay buffer and reuse them many times, but must handle the distribution mismatch between the collection and learning policies.",
+    "bloomLevel": "analyze"
+  },
+  {
+    "id": "final-m4-q12",
+    "type": "multiple-choice",
+    "question": "A policy gradient agent outputs pi(a|s) = softmax(f(s)). If two actions have very similar Q-values, what happens to the gradient magnitude?",
+    "options": [
+      "The gradient becomes very large",
+      "The gradient becomes very small because the advantage A(s,a) = Q(s,a) - V(s) is close to zero, making the signal weak for distinguishing between actions",
+      "The gradient is exactly zero",
+      "The gradient direction reverses"
+    ],
+    "correctIndex": 1,
+    "explanation": "When Q-values are similar, the advantage A(s,a) = Q(s,a) - V(s) is small for all actions (since V is approximately equal to all Q-values). The policy gradient is proportional to the advantage, so similar Q-values produce weak learning signals. This makes learning slow when actions are nearly equivalent.",
+    "bloomLevel": "apply"
+  },
+  {
+    "id": "final-m4-q13",
+    "type": "multiple-choice",
+    "question": "What is the monotonic improvement guarantee that TRPO provides, and why is it important?",
+    "options": [
+      "TRPO guarantees the policy improves by at least 10% per iteration",
+      "TRPO guarantees that the expected return of the new policy is at least as good as the old policy (minus a penalty proportional to the KL divergence), preventing catastrophic performance drops",
+      "TRPO guarantees convergence in a finite number of iterations",
+      "TRPO guarantees the value function always increases"
+    ],
+    "correctIndex": 1,
+    "explanation": "TRPO provides a lower bound: J(pi_new) >= J(pi_old) - C * max_s KL(pi_old || pi_new). By constraining the KL divergence to be small, the penalty term is small, ensuring the new policy is approximately as good or better. This prevents the catastrophic collapses common in unconstrained policy optimization.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m4-q14",
+    "type": "multiple-choice",
+    "question": "Why is the log-derivative trick (REINFORCE trick) essential for deriving the policy gradient?",
+    "options": [
+      "It converts a discrete problem into a continuous one",
+      "It transforms the gradient of an expectation (which requires differentiating through sampling) into an expectation of a gradient, enabling Monte Carlo estimation",
+      "It removes the need for a discount factor",
+      "It makes the gradient zero-mean"
+    ],
+    "correctIndex": 1,
+    "explanation": "We need nabla_theta E_pi[R] but cannot differentiate through the sampling process. The identity nabla log pi = (nabla pi)/pi lets us write nabla E[R] = E[nabla log pi * R]. Now the gradient is inside the expectation and can be estimated by sampling trajectories from pi.",
+    "bloomLevel": "understand"
+  },
+  {
+    "id": "final-m4-q15",
+    "type": "multiple-choice",
+    "question": "If you had to choose one algorithm for a robotics task with continuous state and action spaces, limited real-world samples, and safety constraints, which would be most appropriate?",
+    "options": [
+      "Tabular Q-learning",
+      "REINFORCE",
+      "PPO with conservative hyperparameters (small clip range, small learning rate)",
+      "DQN with discretized actions"
+    ],
+    "correctIndex": 2,
+    "explanation": "Q-learning and DQN cannot naturally handle continuous actions. REINFORCE has high variance and is sample-inefficient. PPO with conservative settings provides stable policy updates (clipping prevents large jumps), handles continuous actions natively, and its monotonic-ish improvement property provides a degree of safety.",
+    "bloomLevel": "apply"
+  }
+]

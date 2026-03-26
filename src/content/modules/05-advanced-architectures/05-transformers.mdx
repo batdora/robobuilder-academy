@@ -1,0 +1,154 @@
+---
+title: "Transformers"
+lessonId: "advanced-arch-05-transformers"
+moduleId: "05-advanced-architectures"
+order: 5
+xpReward: 250
+isBonus: true
+requiresParts: []
+journalEntry: "PARALLEL PROCESSING CORE ACTIVATED. No more sequential bottlenecks -- attention is all I need."
+---
+
+# Transformers
+
+The **Transformer** (Vaswani et al., 2017, "Attention Is All You Need") replaces recurrence entirely with **self-attention**, enabling parallel processing and superior performance on sequence tasks. It has become the dominant architecture in NLP and is increasingly used in vision and robotics.
+
+## Motivation: Why Replace RNNs?
+
+RNNs process sequences **sequentially** -- $\mathbf{h}_t$ depends on $\mathbf{h}_{t-1}$. This means:
+- Cannot parallelize computation across time steps
+- Long-range dependencies still suffer despite LSTM/GRU
+- Training is slow for long sequences
+
+Transformers process all positions **in parallel** using self-attention.
+
+## Self-Attention
+
+In self-attention, each position in the sequence attends to **all other positions** (including itself). Given input embeddings $\mathbf{X} \in \mathbb{R}^{T \times d}$, we compute:
+
+$$
+\mathbf{Q} = \mathbf{X}\mathbf{W}_Q, \quad \mathbf{K} = \mathbf{X}\mathbf{W}_K, \quad \mathbf{V} = \mathbf{X}\mathbf{W}_V
+$$
+
+where $\mathbf{W}_Q, \mathbf{W}_K \in \mathbb{R}^{d \times d_k}$ and $\mathbf{W}_V \in \mathbb{R}^{d \times d_v}$ are learned projection matrices.
+
+$$
+\text{Self-Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}
+$$
+
+The matrix $\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}} \in \mathbb{R}^{T \times T}$ computes pairwise similarity scores between all positions. Each output position is a weighted sum of **all** value vectors.
+
+## Multi-Head Attention
+
+Instead of performing a single attention function, Transformers use **multi-head attention** -- running $h$ attention operations in parallel with different learned projections:
+
+$$
+\text{head}_i = \text{Attention}(\mathbf{X}\mathbf{W}_Q^{(i)}, \mathbf{X}\mathbf{W}_K^{(i)}, \mathbf{X}\mathbf{W}_V^{(i)})
+$$
+
+$$
+\text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\mathbf{W}_O
+$$
+
+where $\mathbf{W}_O \in \mathbb{R}^{hd_v \times d}$ combines the outputs. Typically $d_k = d_v = d / h$.
+
+Each head can learn to attend to **different types of relationships** -- one head might focus on syntactic relations, another on semantic similarity, another on positional proximity.
+
+## Positional Encoding
+
+Self-attention is **permutation-invariant** -- it treats the input as a set, not a sequence. To inject position information, Transformers add **positional encodings** to the input embeddings:
+
+$$
+\text{PE}(pos, 2i) = \sin\left(\frac{pos}{10000^{2i/d}}\right)
+$$
+
+$$
+\text{PE}(pos, 2i+1) = \cos\left(\frac{pos}{10000^{2i/d}}\right)
+$$
+
+where $pos$ is the position and $i$ is the dimension index. These sinusoidal functions allow the model to:
+- Represent relative positions (since $\text{PE}(pos+k)$ can be expressed as a linear function of $\text{PE}(pos)$)
+- Generalize to sequence lengths not seen during training
+
+## Transformer Encoder Block
+
+Each encoder layer consists of two sub-layers:
+
+**1. Multi-Head Self-Attention:**
+
+$$
+\mathbf{Z} = \text{LayerNorm}(\mathbf{X} + \text{MultiHead}(\mathbf{X}))
+$$
+
+**2. Position-wise Feed-Forward Network (FFN):**
+
+$$
+\text{FFN}(\mathbf{z}) = \max(0, \mathbf{z}\mathbf{W}_1 + \mathbf{b}_1)\mathbf{W}_2 + \mathbf{b}_2
+$$
+
+$$
+\text{Output} = \text{LayerNorm}(\mathbf{Z} + \text{FFN}(\mathbf{Z}))
+$$
+
+Key elements:
+- **Residual connections** ($\mathbf{X} + \ldots$) prevent degradation in deep networks
+- **Layer normalization** stabilizes training
+- The FFN uses **ReLU** activation and is applied **independently** to each position
+
+The encoder stacks $N$ such layers (typically $N = 6$).
+
+## Transformer Decoder Block
+
+The decoder has three sub-layers:
+
+1. **Masked Multi-Head Self-Attention** -- prevents attending to future positions by masking:
+
+$$
+\text{Mask}_{ij} = \begin{cases} 0 & \text{if } i \geq j \\ -\infty & \text{if } i < j \end{cases}
+$$
+
+This ensures autoregressive generation: position $t$ can only attend to positions $1, \ldots, t$.
+
+2. **Cross-Attention** -- queries come from the decoder, keys and values from the encoder output:
+
+$$
+\text{CrossAttn}(\mathbf{Q}_{\text{dec}}, \mathbf{K}_{\text{enc}}, \mathbf{V}_{\text{enc}})
+$$
+
+3. **Feed-Forward Network** -- same as encoder
+
+## The Full Transformer Architecture
+
+$$
+\text{Input} \xrightarrow{\text{Embedding + PE}} \underbrace{\text{Encoder} \times N}_{\text{Encode input}} \to \underbrace{\text{Decoder} \times N}_{\text{Generate output}} \xrightarrow{\text{Linear + Softmax}} \text{Output}
+$$
+
+## Computational Complexity
+
+| Model | Time per Layer | Sequential Ops | Max Path Length |
+|-------|---------------|----------------|-----------------|
+| RNN | $O(T \cdot d^2)$ | $O(T)$ | $O(T)$ |
+| Self-Attention | $O(T^2 \cdot d)$ | $O(1)$ | $O(1)$ |
+
+Self-attention has $O(1)$ sequential operations (fully parallel) and $O(1)$ maximum path length between any two positions. The trade-off is $O(T^2)$ in sequence length for the attention matrix.
+
+## Worked Example: Self-Attention for 3 Tokens
+
+Given 3 token embeddings forming $\mathbf{Q}, \mathbf{K}, \mathbf{V} \in \mathbb{R}^{3 \times 2}$:
+
+$$
+\mathbf{Q} = \begin{bmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \end{bmatrix}, \quad
+\mathbf{K} = \begin{bmatrix} 1 & 1 \\ 0 & 1 \\ 1 & 0 \end{bmatrix}
+$$
+
+**Attention scores** ($d_k = 2$):
+
+$$
+\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{2}} = \frac{1}{\sqrt{2}}\begin{bmatrix} 1 & 0 & 1 \\ 1 & 1 & 0 \\ 2 & 1 & 1 \end{bmatrix} \approx \begin{bmatrix} 0.71 & 0 & 0.71 \\ 0.71 & 0.71 & 0 \\ 1.41 & 0.71 & 0.71 \end{bmatrix}
+$$
+
+After softmax (row-wise), each row gives the attention weights for that position. Token 3 attends most strongly to Token 1 (score 1.41).
+
+## Key Takeaway
+
+> Transformers replace recurrence with self-attention, enabling parallel processing and direct connections between any two positions. Multi-head attention captures diverse relationships, positional encodings inject sequence order, and residual connections with layer normalization enable deep stacking. This architecture is the foundation of modern AI.
