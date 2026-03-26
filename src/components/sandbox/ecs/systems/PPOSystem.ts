@@ -81,10 +81,10 @@ export function ppoSystem(
     ppoState.valueEstimate += 0.01 * (reward - ppoState.valueEstimate);
 
     // Policy gradient with clipping
+    const maxProb = Math.max(...ppoState.policy);
+    const bestIdx = ppoState.policy.indexOf(maxProb);
     const newLogits = ppoState.policy.map((p, i) => {
-      const grad = advantage * (i === ACTIONS.indexOf(
-        ACTIONS[ppoState.policy.indexOf(Math.max(...ppoState.policy))]
-      ) ? 1 : -0.1);
+      const grad = advantage * (i === bestIdx ? 1 : -0.1);
       return Math.log(Math.max(p, 0.01)) + 0.01 * grad;
     });
 
@@ -146,7 +146,7 @@ export function ppoSystem(
     const dispX = x - Position.x[eid];
     const dispY = y - Position.y[eid];
     const disp = Math.sqrt(dispX * dispX + dispY * dispY);
-    if (disp > TRUST_RADIUS * dt) {
+    if (disp > 0 && disp > TRUST_RADIUS * dt) {
       const scale = (TRUST_RADIUS * dt) / disp;
       x = Position.x[eid] + dispX * scale;
       y = Position.y[eid] + dispY * scale;

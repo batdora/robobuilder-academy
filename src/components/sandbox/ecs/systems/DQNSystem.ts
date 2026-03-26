@@ -120,11 +120,12 @@ function backprop(weights: DQNWeights, input: number[], hidden: number[], target
 }
 
 export function createDQNWeights(): DQNWeights {
-  const randW = () => (Math.random() - 0.5) * 0.2;
+  // Xavier-like initialization: scale by sqrt(2/fan_in)
+  const randW = (fanIn: number) => (Math.random() - 0.5) * 2 * Math.sqrt(2 / fanIn);
   return {
-    w1: Array.from({ length: 25 }, () => Array.from({ length: 16 }, randW)),
+    w1: Array.from({ length: 25 }, () => Array.from({ length: 16 }, () => randW(25))),
     b1: Array.from({ length: 16 }, () => 0),
-    w2: Array.from({ length: 16 }, () => Array.from({ length: 4 }, randW)),
+    w2: Array.from({ length: 16 }, () => Array.from({ length: 4 }, () => randW(16))),
     b2: Array.from({ length: 4 }, () => 0),
   };
 }

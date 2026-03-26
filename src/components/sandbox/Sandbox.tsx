@@ -162,6 +162,7 @@ export default function Sandbox({ challengeId, onJournalEntry, onOverlayData, on
   const [stepCount, setStepCount] = useState(0);
   const [totalReward, setTotalReward] = useState(0);
   const [goalReached, setGoalReached] = useState(false);
+  const goalReachedRef = useRef(false);
 
   const isPlayingRef = useRef(false);
   const speedRef = useRef(1);
@@ -258,6 +259,7 @@ export default function Sandbox({ challengeId, onJournalEntry, onOverlayData, on
     tickAccumRef.current = 0;
     setStepCount(0);
     setTotalReward(0);
+    goalReachedRef.current = false;
     setGoalReached(false);
 
     // Initial render
@@ -325,7 +327,7 @@ export default function Sandbox({ challengeId, onJournalEntry, onOverlayData, on
   // Tick one simulation step
   const tickStep = useCallback(() => {
     const state = stateRef.current;
-    if (!state || goalReached) return;
+    if (!state || goalReachedRef.current) return;
 
     const { world, grid, qTable, dqnWeights, doubleQ, ppoState } = state;
     const robotEid = grid.robotEntity;
@@ -462,6 +464,7 @@ export default function Sandbox({ challengeId, onJournalEntry, onOverlayData, on
           message: `Found the goal! Reward: +${reward}. Victory!`,
           type: 'reward',
         });
+        goalReachedRef.current = true;
         setGoalReached(true);
         setIsPlaying(false);
         isPlayingRef.current = false;
@@ -488,7 +491,7 @@ export default function Sandbox({ challengeId, onJournalEntry, onOverlayData, on
         });
       }
     }
-  }, [goalReached, onJournalEntry, onOverlayData, onStatsUpdate]);
+  }, [onJournalEntry, onOverlayData, onStatsUpdate]);
 
   // Game loop
   useEffect(() => {
