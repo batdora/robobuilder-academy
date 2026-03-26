@@ -14,7 +14,7 @@ const { title, lessonId, moduleId, robotPart, xpReward } = Astro.props;
 
 <MainLayout title={title}>
   <div class="flex min-h-[calc(100vh-3.5rem)]">
-    <article class="w-[70%] p-8 overflow-y-auto prose prose-invert max-w-none">
+    <article class="w-[70%] p-8 overflow-y-auto max-w-none">
       <h1 class="text-[#00ff41] mb-6">{title}</h1>
       <div class="mdx-content">
         <slot />
@@ -23,7 +23,7 @@ const { title, lessonId, moduleId, robotPart, xpReward } = Astro.props;
       </div>
     </article>
 
-    <aside class="w-[30%] bg-[#16213e] border-l-4 border-[#0095ff] p-4 overflow-y-auto">
+    <aside class="w-[30%] bg-[#16213e] border-l-4 border-[#0095ff] p-4 overflow-y-auto" style="font-family: var(--font-body);">
       <div class="nes-container is-dark with-title mb-4">
         <p class="title" style="font-size: 0.625rem;">Lesson Info</p>
         <div class="space-y-3 text-xs">
