@@ -94,10 +94,14 @@ code, pre {
 
 /* MDX lesson content — blog-like readable typography */
 .mdx-content {
-  font-family: var(--font-body);
+  font-family: var(--font-body) !important;
   font-size: 1.05rem;
   line-height: 1.8;
-  color: #e0e0e8;
+  color: #e8e8f0 !important;
+}
+
+.mdx-content *:not(h1):not(h2):not(h3):not(h4):not(code):not(pre):not(pre *):not(.katex):not(.katex *) {
+  font-family: var(--font-body) !important;
 }
 
 .mdx-content h1 {
@@ -135,18 +139,21 @@ code, pre {
 }
 
 .mdx-content p {
-  font-family: var(--font-body);
+  font-family: var(--font-body) !important;
   margin: 0 0 1rem;
+  color: #e8e8f0;
 }
 
 .mdx-content ul, .mdx-content ol {
-  font-family: var(--font-body);
+  font-family: var(--font-body) !important;
   margin: 0 0 1rem;
   padding-left: 1.5rem;
+  color: #e8e8f0;
 }
 
 .mdx-content li {
   margin-bottom: 0.4rem;
+  color: #e8e8f0;
 }
 
 .mdx-content ul li {
@@ -158,8 +165,8 @@ code, pre {
 }
 
 .mdx-content strong {
-  color: #ffffff;
-  font-weight: 600;
+  color: #ffffff !important;
+  font-weight: 700;
 }
 
 .mdx-content em {

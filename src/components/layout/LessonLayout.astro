@@ -14,8 +14,7 @@ const { title, lessonId, moduleId, robotPart, xpReward } = Astro.props;
 
 <MainLayout title={title}>
   <div class="flex min-h-[calc(100vh-3.5rem)]">
-    <article class="w-[70%] p-8 overflow-y-auto max-w-none">
-      <h1 class="text-[#00ff41] mb-6">{title}</h1>
+    <article class="w-[70%] p-8 overflow-y-auto max-w-none" style="background-color: #0d1117;">
       <div class="mdx-content">
         <slot />
       </div>
