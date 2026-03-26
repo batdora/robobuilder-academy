@@ -60,7 +60,7 @@ function SkillNode({ data }: NodeProps) {
     justifyContent: 'center',
     gap: 4,
     opacity: isLocked ? 0.5 : 1,
-    cursor: isAvailable || isInProgress ? 'pointer' : 'default',
+    cursor: lessonUrl ? 'pointer' : 'default',
     imageRendering: 'pixelated',
     position: 'relative',
     transition: 'box-shadow 0.3s ease',
@@ -84,7 +84,7 @@ function SkillNode({ data }: NodeProps) {
   };
 
   const handleClick = () => {
-    if (lessonUrl && (isAvailable || isInProgress)) {
+    if (lessonUrl) {
       window.location.href = lessonUrl;
     }
   };

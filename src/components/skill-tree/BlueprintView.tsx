@@ -37,6 +37,15 @@ const LESSON_URLS: Record<string, string> = {
   BRAIN: '/modules/01-foundations/02-what-is-nn',
   EYES: '/modules/01-foundations/03-intro-to-cnns',
   METABOLISM: '/modules/01-foundations/04-optimization',
+  INSTINCT_CHIP: '/modules/02-rl-foundations/01-mdp',
+  GENERALIZATION_MODULE: '/modules/03-deep-q-learning/01-function-approximation',
+  VISUAL_CORTEX: '/modules/03-deep-q-learning/04-dqn',
+  STABILITY_MODULE: '/modules/03-deep-q-learning/06-double-dqn',
+  MOTOR_CORTEX: '/modules/04-policy-optimization/01-policy-based-methods',
+  SAFETY_GOVERNOR: '/modules/04-policy-optimization/08-ppo',
+  LANGUAGE_PROCESSOR: '/modules/05-advanced-architectures/01-rnn-recap',
+  RELATIONAL_REASONING_UNIT: '/modules/05-advanced-architectures/07-graph-basics',
+  IMITATION_DRIVE: '/modules/06-robot-learning/01-imitation-learning',
 };
 
 function getPartState(
