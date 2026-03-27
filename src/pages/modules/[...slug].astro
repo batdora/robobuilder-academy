@@ -5,13 +5,37 @@ import CompleteLessonButton from '../../components/ui/CompleteLessonButton';
 
 export async function getStaticPaths() {
   const lessons = await getCollection('modules');
-  return lessons.map((lesson) => ({
-    params: { slug: lesson.id },
-    props: { lesson },
-  }));
+
+  // Group lessons by module and sort by order
+  const byModule: Record<string, typeof lessons> = {};
+  for (const lesson of lessons) {
+    const mod = lesson.data.moduleId;
+    if (!byModule[mod]) byModule[mod] = [];
+    byModule[mod].push(lesson);
+  }
+  for (const mod of Object.keys(byModule)) {
+    byModule[mod].sort((a, b) => a.data.order - b.data.order);
+  }
+
+  return lessons.map((lesson) => {
+    const moduleLessons = byModule[lesson.data.moduleId] || [];
+    const currentIndex = moduleLessons.findIndex((l) => l.id === lesson.id);
+    const nextLesson = currentIndex >= 0 && currentIndex < moduleLessons.length - 1
+      ? moduleLessons[currentIndex + 1]
+      : null;
+
+    return {
+      params: { slug: lesson.id },
+      props: {
+        lesson,
+        nextLessonUrl: nextLesson ? `/modules/${nextLesson.id}` : null,
+        nextLessonTitle: nextLesson ? nextLesson.data.title : null,
+      },
+    };
+  });
 }
 
-const { lesson } = Astro.props;
+const { lesson, nextLessonUrl, nextLessonTitle } = Astro.props;
 const { Content } = await render(lesson);
 ---
 <LessonLayout
@@ -29,6 +53,8 @@ const { Content } = await render(lesson);
       moduleId={lesson.data.moduleId}
       xpReward={lesson.data.xpReward}
       robotPart={lesson.data.robotPart || ''}
+      nextLessonUrl={nextLessonUrl}
+      nextLessonTitle={nextLessonTitle}
     />
   </div>
 </LessonLayout>

@@ -1,13 +1,39 @@
 ---
+import { getCollection } from 'astro:content';
 import MainLayout from '../components/layout/MainLayout.astro';
 import BlueprintView from '../components/skill-tree/BlueprintView';
+import CurriculumList from '../components/curriculum/CurriculumList';
 import XPBadge from '../components/ui/XPBadge';
+
+const allLessons = await getCollection('modules');
+const lessonData = allLessons.map((l) => ({
+  id: l.id,
+  lessonId: l.data.lessonId,
+  title: l.data.title,
+  moduleId: l.data.moduleId,
+  order: l.data.order,
+  robotPart: l.data.robotPart || undefined,
+  xpReward: l.data.xpReward,
+}));
 ---
 <MainLayout title="Robot Blueprint">
-  <div class="h-[calc(100vh-3.5rem)] relative">
-    <div class="absolute top-4 right-4 z-10">
-      <XPBadge client:load />
+  <div class="flex min-h-[calc(100vh-3.5rem)]">
+    <!-- Left: Blueprint -->
+    <div class="flex-1 relative" style="min-width: 0;">
+      <div class="absolute top-4 right-4 z-10">
+        <XPBadge client:load />
+      </div>
+      <div class="h-full" style="min-height: 600px;">
+        <BlueprintView client:load />
+      </div>
     </div>
-    <BlueprintView client:load />
+
+    <!-- Right: Curriculum sidebar -->
+    <div
+      class="w-[340px] flex-shrink-0 overflow-y-auto border-l-4 border-[#0095ff33] p-4"
+      style="background: #0d1117; max-height: calc(100vh - 3.5rem);"
+    >
+      <CurriculumList client:load lessons={lessonData} />
+    </div>
   </div>
 </MainLayout>

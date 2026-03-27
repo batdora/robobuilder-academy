@@ -9,6 +9,8 @@ interface CompleteLessonButtonProps {
   robotPart: string;
   xpReward: number;
   moduleId: string;
+  nextLessonUrl?: string;
+  nextLessonTitle?: string;
 }
 
 interface Particle {
@@ -27,6 +29,8 @@ export default function CompleteLessonButton({
   robotPart,
   xpReward,
   moduleId,
+  nextLessonUrl,
+  nextLessonTitle,
 }: CompleteLessonButtonProps) {
   const completeLesson = useProgressStore((s) => s.completeLesson);
   const completedLessons = useProgressStore((s) => s.completedLessons);
@@ -37,8 +41,9 @@ export default function CompleteLessonButton({
   );
   const [particles, setParticles] = useState<Particle[]>([]);
 
-  const partInfo = ROBOT_PARTS[robotPart as keyof typeof ROBOT_PARTS];
-  const journalEntry = JOURNAL_ENTRIES[robotPart] ?? '';
+  const hasRobotPart = robotPart && robotPart.length > 0;
+  const partInfo = hasRobotPart ? ROBOT_PARTS[robotPart as keyof typeof ROBOT_PARTS] : null;
+  const journalEntry = hasRobotPart ? JOURNAL_ENTRIES[robotPart] : null;
 
   const spawnParticles = useCallback(() => {
     const newParticles: Particle[] = Array.from({ length: 24 }, (_, i) => {
@@ -74,10 +79,11 @@ export default function CompleteLessonButton({
   }, [particles.length]);
 
   const handleComplete = () => {
-    completeLesson(lessonId, robotPart, xpReward, moduleId);
+    completeLesson(lessonId, robotPart || '__NONE__', xpReward, moduleId);
     setStage('celebrating');
     spawnParticles();
-    setTimeout(() => setStage('journal'), 1800);
+    // Skip journal if no robot part to show
+    setTimeout(() => setStage(journalEntry ? 'journal' : 'done'), 1800);
   };
 
   if (stage === 'idle') {
@@ -104,19 +110,21 @@ export default function CompleteLessonButton({
               }}
             />
           ))}
-          <div className="text-4xl animate-bounce">{partInfo?.icon ?? '🔧'}</div>
+          <div className="text-4xl animate-bounce">{partInfo?.icon ?? '✅'}</div>
         </div>
         <p className="font-[family-name:var(--font-heading)] text-[#ffd700] text-sm animate-pixel-pulse">
           +{xpReward} XP
         </p>
-        <p className="font-[family-name:var(--font-heading)] text-[#00ff41] text-xs">
-          {partInfo?.name ?? robotPart} Installed!
-        </p>
+        {partInfo && (
+          <p className="font-[family-name:var(--font-heading)] text-[#00ff41] text-xs">
+            {partInfo.name} Installed!
+          </p>
+        )}
       </div>
     );
   }
 
-  if (stage === 'journal') {
+  if (stage === 'journal' && journalEntry) {
     return (
       <div className="flex flex-col items-center gap-6 py-4 max-w-lg mx-auto">
         <div className="nes-container is-dark with-title w-full">
@@ -139,16 +147,28 @@ export default function CompleteLessonButton({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 py-4">
+    <div className="flex flex-col items-center gap-4 py-4">
       <p className="font-[family-name:var(--font-heading)] text-[#00ff41] text-xs">
         Lesson Complete
       </p>
-      <a
-        href="/"
-        className="nes-btn is-primary font-[family-name:var(--font-heading)] text-[0.625rem]"
-      >
-        Back to Blueprint
-      </a>
+      <div className="flex gap-3 flex-wrap justify-center">
+        {nextLessonUrl && (
+          <a
+            href={nextLessonUrl}
+            className="nes-btn is-success font-[family-name:var(--font-heading)]"
+            style={{ fontSize: '0.55rem' }}
+          >
+            Next: {nextLessonTitle || 'Next Lesson'} →
+          </a>
+        )}
+        <a
+          href="/"
+          className="nes-btn is-primary font-[family-name:var(--font-heading)]"
+          style={{ fontSize: '0.55rem' }}
+        >
+          Blueprint
+        </a>
+      </div>
     </div>
   );
 }

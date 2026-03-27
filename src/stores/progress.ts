@@ -87,12 +87,13 @@ export const useProgressStore = create<ProgressStore>()(
         if (state.completedLessons.includes(lessonId)) return;
 
         const streak = updateStreak(state.lastStudyDate, state.studyStreak);
-        const newParts = state.robotParts.includes(robotPart)
-          ? state.robotParts
-          : [...state.robotParts, robotPart];
-        const newActiveParts = state.activeParts.includes(robotPart)
-          ? state.activeParts
-          : [...state.activeParts, robotPart];
+        const hasRealPart = robotPart && robotPart !== '__NONE__' && robotPart.length > 0;
+        const newParts = hasRealPart && !state.robotParts.includes(robotPart)
+          ? [...state.robotParts, robotPart]
+          : state.robotParts;
+        const newActiveParts = hasRealPart && !state.activeParts.includes(robotPart)
+          ? [...state.activeParts, robotPart]
+          : state.activeParts;
 
         set({
           completedLessons: [...state.completedLessons, lessonId],
